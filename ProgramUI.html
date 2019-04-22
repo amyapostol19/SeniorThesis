@@ -1,0 +1,131 @@
+<!doctype html>
+<html>
+
+<head>
+  <meta charset="UTF-8">
+  
+  <style>
+
+  	body {
+  		background-color: black;
+  		color: white;
+  	}
+
+  	#dropzone {
+  		border: 1px solid white;
+  		height: 500px;
+  		width: 800px;
+  		position: absolute;
+  	}
+
+  	.animation {
+  		margin: 20px;
+  		display: none;
+  		position: absolute;
+  	}
+
+  	@keyframes example {
+  		from {color: red;}
+  		to {color: white;}
+  	}
+
+    .node {
+    	width: 130px;
+    	height: 50px;
+    	border: 1px solid gray;
+    	border-radius: 50%;
+    	cursor: pointer;
+    	text-align: center;
+
+    	animation-name: example;
+    	animation-iteration-count: 10;
+    }
+
+
+  </style>
+
+</head>
+
+<body>
+
+  <!--<img src="https://en.js.cx/clipart/soccer-gate.svg" id="gate" class="droppable">-->
+
+  <h1>Bayes Net Debugger</h1>
+
+  <canvas id="Drawer" style="position: absolute; color: red"></canvas>
+
+  <table>
+  	<tr>
+  		<td><div id="dropzone" class="droppable">
+  			<div id="completionRate"></div>
+  		</div></td>
+
+  		<td class="animation" style="left: 820px;">
+  			<div>Choose node to animate:</div>
+  			<form id="animateForm"></form>
+  			<div>
+  				<table><tr>
+  					<td><input type="range" min="1" max="1000" value="500" id="slider" onclick="displayRSVPSpeed()"></td>
+  					<td id="speedDisplay"></td>
+  				</tr></table>
+  			</div>
+  			<button onclick="animateNodes(event)">Start Animation</button>
+  			<div></div>
+  			<button onclick="stopAnimation(event)">Stop Animation</button>
+  		</td>
+  		<td class="animation" style="left: 1020px;">
+  			<div>Choose two nodes to connect:</div>
+  			<form id="Connect1">
+  				<select id="connectSelect1"></select>
+  			</form>
+  			<form id="Connect2">
+  				<select id="connectSelect2"></select>
+  			</form>
+  			<div style="padding-top: 5px"></div>
+  			<button id="ConnectButton" onclick="connectTwoNodes(event)">Connect!</button>
+  			<button id="DisconnectButton" onclick="disconnectTwoNodes(event)">Disconnect</button>
+  		</td>
+  		<td class="animation" style="left: 820px; top: 300px;">
+  			<div style="font-size: 130%"><b>TESTING</b></div>
+  			<div>Select givens:</div>
+  			<table id="propTable"></table>
+  			<div style="padding-top: 10px"></div>
+  			<div>Choose Result Node</div>
+  			<form>
+  				<select id="resultsForm"></select>
+  			</form>
+  			<button id="PropogateButton" onclick="getResults(event)">Get Results! (Stepper)</button>
+  			<button onclick="clearResults()">Clear Results</button>
+  		</td>
+  		<td class="animation" style="top: 300px; left: 1100px">
+  			<div>Test File:</div>
+  			<input type="file" name="file" id="testFiles" />
+  			<div style="padding-top: 10px"></div>
+  			<button onclick="readTestFile()">Upload Test File</button>
+  			<div style="display: none;" id="TestLoaded">Loaded!</div>
+  			<div style="padding-top: 10px"></div>
+  			<button onclick="runTests(event)">Step Tests</button>
+  			<div id="TestAccuracy"></div>
+  			<button onclick="runAllTests(event)">Run All Tests</button>
+  		</td>
+
+  </table>
+
+  <button style="position: absolute; top: 600px; left: 300px;" onclick="createNewNode(event)">Create Node</button>
+
+<!--<svg width="4" height="124" style="position: absolute; top: 218; left: 358; stroke: blue">
+  <line id="line" x1="0" y1="0" x2="4" y2="124" style="stroke-width:2; position: absolute;" />
+</svg>-->
+
+  <input style="position: absolute; top: 600px; left: 10px;" type="file" id="files" name="file" />
+  <button style="position: absolute; top: 600px; left: 200px;" id="entire" onclick="readDataFile()">Upload Data</button>
+  <div style="position: absolute; top: 630px">
+  	<div id="byte_range"></div>
+  	<div id="byte_content"></div>
+  </div>
+
+  <script src="script.js"></script>
+
+
+</body>
+</html>
