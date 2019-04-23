@@ -147,6 +147,11 @@ function displayRSVPSpeed() {
   document.getElementById("speedDisplay").innerHTML = speed;
 }
 
+function displayTestSpeed() {
+  var speed = document.getElementById("testSlider").value;
+  document.getElementById("testSpeedDisplay").innerHTML = speed;
+}
+
 function animateNodes(event) {
   if (data.length == 0){
     alert("Please upload data");
@@ -170,7 +175,7 @@ function animateNodes(event) {
 
   //get slider value
   var slider = document.getElementById("slider");
-  var speed = slider.value;
+  var speed = 1000 - (slider.value*10);
   
   function myloop() {
     setTimeout(function () {
@@ -307,20 +312,30 @@ function addNodeName(nodeID) {
   var form = document.getElementById(nodeID+"Form");
   document.body.removeChild(form);
 
+  //append new name to delete node form
+  var delOption = document.createElement("option");
+  delOption.setAttribute('value', nodeName);
+  delOption.setAttribute("id", "delOption"+nodeName);
+  delOption.innerHTML = nodeName;
+  document.getElementById("deleteValue").appendChild(delOption);
+
   //append new name to animation options
   var option = document.createElement("option");
   option.setAttribute('value', nodeName);
+  option.setAttribute('id', "animOption"+nodeName);
   option.innerHTML = nodeName;
   document.getElementById("animationOptions").appendChild(option);
 
   //append new names to connect node options
   var option1 = document.createElement("option");
   option1.setAttribute('value', nodeName);
+  option1.setAttribute('id', "connectOption1"+nodeName);
   option1.innerHTML = nodeName;
   document.getElementById("connectSelect1").appendChild(option1);
 
   var option2 = document.createElement("option");
   option2.setAttribute('value', nodeName);
+  option2.setAttribute('id', "connectOption2"+nodeName);
   option2.innerHTML = nodeName;
   document.getElementById("connectSelect2").appendChild(option2);
 
@@ -328,6 +343,7 @@ function addNodeName(nodeID) {
   //append new names to get results form
   var resultsOption = document.createElement("option");
   resultsOption.setAttribute("value", nodeName);
+  resultsOption.setAttribute("id", "resultOption"+nodeName);
   resultsOption.innerHTML = nodeName;
   document.getElementById("resultsForm").appendChild(resultsOption);
 
@@ -335,6 +351,7 @@ function addNodeName(nodeID) {
   //append new name to propogate results options
   var table = document.getElementById("propTable");
   var row = document.createElement("tr");
+  row.setAttribute("id", "propRow"+nodeName);
 
   //create first element in row
   var tag = document.createElement("td");
@@ -373,6 +390,60 @@ function addNodeName(nodeID) {
   row.appendChild(tag);
   row.appendChild(formTD);
   table.appendChild(row);
+}
+
+function deleteNode(event) {
+  //get node ID
+  var nodeID = document.getElementById("deleteValue").value;
+
+  if (!nodes.includes(nodeID)){
+    alert("Please select a node to delete");
+    return;
+  }
+
+  //remove from Nodex
+  var nodeIndex = nodes.indexOf(nodeID);
+  nodes.splice(nodeIndex, 1);
+
+  //remove from body
+  var nodeElem = document.getElementById(nodeID);
+  document.body.removeChild(nodeElem);
+
+  //remove from animation list
+  var animOption = document.getElementById("animOption"+nodeID);
+  document.getElementById("animationOptions").removeChild(animOption);
+
+  //remove from connect options
+  var connectOption1 = document.getElementById("connectOption1"+nodeID);
+  document.getElementById("connectSelect1").removeChild(connectOption1);
+  var connectOption2 = document.getElementById("connectOption2"+nodeID);
+  document.getElementById("connectSelect2").removeChild(connectOption2);
+
+  //remove name from get results option
+  var resultOption = document.getElementById("resultOption"+nodeID);
+  document.getElementById("resultsForm").removeChild(resultOption);
+
+  //remove from givens option
+  var row = document.getElementById("propRow"+nodeID);
+  document.getElementById("propTable").removeChild(row);
+
+  //remove connections
+  console.log(parents);
+  delete parents[nodeID];
+
+  for (var child in parents){
+    var parList = parents[child];
+    if (parList.includes(nodeID)){
+      var index = parList.indexOf(nodeID);
+      parList.splice(index, 1);
+      parents[child] = parList;
+    }
+  }
+  
+  //remove from delete options
+  var delOption = document.getElementById("delOption"+nodeID);
+  document.getElementById("deleteValue").removeChild(delOption);
+
 }
 
 function dragAndDrop(node_id) {
@@ -530,14 +601,20 @@ function disconnectTwoNodes(event) {
   parents[secondNode] = parentList;
 }
 
+var pauseTesting = false;
+
 function runTests(event) {
   clearResults();
-  console.log("running tests", testCounter);
+
+  if (testCounter >= testData.length){
+    testCounter = 0;
+    testCorrect = 0;
+  }
 
   var finalVariable = "Plane Doesn't Land";
   var dataPoint = testData[testCounter];
 
-  var givens = ["Bad Weather"];
+  var givens = parents[finalVariable];
 
   for (var i=0; i<givens.length; i++){
     var givenIndex = features.indexOf(givens[i]);
@@ -599,6 +676,11 @@ function runTests(event) {
   //var corr = document.getElementById("CorrectVal");
   //corr.innerHTML="Correct Value"
 
+  var progressBar = document.getElementById("progressBar");
+  var newProgress = ((testCounter+1)/testData.length)*200;
+  progressBar.style.width = newProgress+"px";
+  progressBar.innerHTML = newProgress/2+"%";
+
   var acc = document.getElementById("TestAccuracy");
   acc.innerHTML = "TestAccuracy: "+testCorrect/(testCounter+1);
 
@@ -606,23 +688,34 @@ function runTests(event) {
   testCounter += 1;
   if (testCounter >= testData.length){
     console.log("test accuracy", testCorrect/testData.length);
-
-    testCounter == 0;
     alert("Finished running tests");
   }
 }
 
 function runAllTests(event) {
+  var speed = 10000 - document.getElementById("testSlider").value*100;
+
+  pauseTesting = false;
   function totalloop() {
     setTimeout(function () {
-      if (testCounter < testData.length){
+      if (pauseTesting){
+      } else if ((testCounter < testData.length) && !pauseTesting){
         runTests(event);
         totalloop();
+      } else {
+        testCounter = 0;
+        testCorrect = 0;
       }
-    }, 2000)
+    }, speed)
   }
 
   totalloop();
+  return;
+}
+
+function pauseTestingFunc(event) {
+  console.log("activating pause");
+  pauseTesting = true;
 }
 
 function getResults(event) {

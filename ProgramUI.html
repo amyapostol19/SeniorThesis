@@ -65,7 +65,7 @@
   			<form id="animateForm"></form>
   			<div>
   				<table><tr>
-  					<td><input type="range" min="1" max="1000" value="500" id="slider" onclick="displayRSVPSpeed()"></td>
+  					<td><input type="range" min="1" max="100" value="50" id="slider" onclick="displayRSVPSpeed()"></td>
   					<td id="speedDisplay"></td>
   				</tr></table>
   			</div>
@@ -75,12 +75,20 @@
   		</td>
   		<td class="animation" style="left: 1020px;">
   			<div>Choose two nodes to connect:</div>
-  			<form id="Connect1">
-  				<select id="connectSelect1"></select>
-  			</form>
-  			<form id="Connect2">
-  				<select id="connectSelect2"></select>
-  			</form>
+  			<table>
+  				<tr>
+  					<td>Parent: </td>
+  					<td><form id="Connect1">
+  						<select id="connectSelect1"></select>
+  					</form></td>
+  				</tr>
+  				<tr>
+  					<td>Child: </td>
+  					<td><form id="Connect2">
+  						<select id="connectSelect2"></select>
+  					</form></td>
+  				</tr>
+  			</table>
   			<div style="padding-top: 5px"></div>
   			<button id="ConnectButton" onclick="connectTwoNodes(event)">Connect!</button>
   			<button id="DisconnectButton" onclick="disconnectTwoNodes(event)">Disconnect</button>
@@ -104,14 +112,32 @@
   			<button onclick="readTestFile()">Upload Test File</button>
   			<div style="display: none;" id="TestLoaded">Loaded!</div>
   			<div style="padding-top: 10px"></div>
-  			<button onclick="runTests(event)">Step Tests</button>
-  			<div id="TestAccuracy"></div>
+  			<button onclick="runTests(event)">Single Step Through Tests</button>
+  			<div style="padding-top: 10px"></div>
   			<button onclick="runAllTests(event)">Run All Tests</button>
+  			<button onclick="pauseTestingFunc(event)">Pause Testing</button>
+  			<div style="padding-top: 10px"></div>
+  			<div style="padding-bottom: 10px">
+  				<table><tr>
+  					<td><input type="range" min="1" max="100" value="50" id="testSlider" onclick="displayTestSpeed()"></td>
+  					<td id="testSpeedDisplay"></td>
+  				</tr></table>
+  			</div>
+  			<div style="width: 200px; height: 20px; background-color: grey; text-align: center;">
+  				<div id="progressBar" style="width: 0px; background-color: green; height: 20px;">0%</div>
+  			</div>
+  			<div id="TestAccuracy" style="padding-top: 5px"></div>
   		</td>
 
   </table>
 
   <button style="position: absolute; top: 600px; left: 300px;" onclick="createNewNode(event)">Create Node</button>
+  <form style="position: absolute; top: 630px; left: 400px">
+  	<select id="deleteValue">
+  		<option>Select Node To Delete</option>
+  	</select>
+  </form>
+  <button style="position: absolute; top: 600px; left: 400px" onclick="deleteNode(event)">Delete Node</button>
 
 <!--<svg width="4" height="124" style="position: absolute; top: 218; left: 358; stroke: blue">
   <line id="line" x1="0" y1="0" x2="4" y2="124" style="stroke-width:2; position: absolute;" />
