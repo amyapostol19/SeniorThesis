@@ -19,6 +19,7 @@ var stopAnimating = false;
 //for propogating results
 var finishedAssignments = false;
 var setValues = {}
+var probabilities = {}
 
 function handleFileSelect(evt) {
     var files = evt.target.files; // FileList object
@@ -661,6 +662,8 @@ function runTests(event) {
 
       var node = document.getElementById(currentNode);
       node.innerHTML += "<br />";
+      node.innerHTML += "Probability True: " + finalprobability + "%";
+      node.innerHTML += "<br />";
       node.innerHTML += "<span style='color:red'>Actual: "+setValues[currentNode]+"</span>";
     }
   }
@@ -780,6 +783,101 @@ function getResults(event) {
   node.innerHTML += "<br />";
   node.innerHTML += "<span style='color:red'>"+setValues[currentNode]+"</span>";
   console.log("made it here");
+
+}
+
+
+function computeProbabilities() {
+  finalNode = "Plane Doesn't Land";
+
+  function getParentPermutations(parentList){
+    if (parentList.length == 1){
+      parent = parentList[0];
+      return [parent, "not"+parent];
+    } 
+
+    else {
+      newParentList = parentList;
+      var parent = newParentList.shift()
+      prev_perms = getParentPermutations(newParentList);
+      newPermList = []
+      for (var i=0; i<prev_perms.length; i++){
+        newPermList.push(parent+"&"+prev_perms[i]);
+        newPermList.push("not"+parent+"&"+prev_perms[i]);
+      }
+      return newPermList;
+    }
+  }
+
+  function helper(currentNode) {
+    if (parents[currentNode].length == 0){
+      //if node doesn't have any parents just compute probability of true and false
+      var True = 0;
+      var False = 0;
+      var total = 0;
+      var nodeIndex = features.indexOf(currentNode);
+      for (var i=0; i<data.length; i++){
+        total += 1;
+        if (data[i] == "1"){
+          True += 1;
+        } else {
+          False += 1;
+        }
+      }
+
+      prob_dict = {true: True/total, false: False/total};
+    } 
+
+    //recursive step
+    else {
+      countDict = {};
+      trueCountDict = {}
+      permutations = getParentPermutations(parents[currentNode]);
+      for (var i=0; i<permutations.length; i++){
+        countDict[permutations[i]] = 0;
+        trueCountDict[permutations[i]] = 0;
+      }
+
+      //loop through all data points
+      for (var j=0; j<data.length; j++){
+
+        //for each data point check if a particular permutation matches that data point
+        for (var i=0; i<permutations.length; i++){
+          parentNodes = permutations[i].split("&");
+          var valid = true;
+
+          //separate parent node names in permutations and check if they're true or false;
+          for (var k=0; k<parentNodes.length; k++){
+            if (parentNodes[k].includes("not")){
+              nodeName = parentNodes[k];
+              nodeName.splice(0,3);
+              console.log(nodeName);
+              nodeIndex = features.indexOf(nodeName);
+
+              if (!data[i][nodeIndex] == "0"){
+                valid = false;
+                break;
+              }
+            } else {
+              nodeIndex = features.indexOf(parentNodes[k]);
+              if (!data[i][nodeIndex] == "1"){
+                valid = false;
+                break;
+              }
+            }
+          }
+
+          if (!valid){
+            continue;
+          }
+        }
+
+      }
+      
+    }
+  }
+
+  helper(finalNode);
 
 }
 
