@@ -18,7 +18,6 @@ var testCounter = 0;
 var testCorrect = 0;
 
 //for propogating results
-var finishedAssignments = false;
 var setValues = {}
 var probabilities = {}
 
@@ -477,11 +476,6 @@ function animateNodes(event) {
         var elem = document.getElementById(nodeToAnimate)
         var dataIndex = features.indexOf(nodeToAnimate);
 
-        if (!nodesToAnimate.includes(nodes[j])){
-          console.log("THIS WEIRD CASE THAT I WAS THINKING OF DELETING");
-          continue;
-        }
-
         //only change the color of the node every other loop so that we can get the blinking effect
         if (counter%2 == 1){
           elem.style.color = "white";
@@ -501,7 +495,9 @@ function animateNodes(event) {
 
       //used to keep track of how far along we are in the animation process
       if (counter%2 == 0){
-        document.getElementById('completionRate').innerHTML = "Animation is " + counter/2 + " % finished."; 
+        //document.getElementById('completionRate').innerHTML = "Animation is " + counter/2 + " % finished.";
+        document.getElementById('animProgressBar').style.width = counter+"px"; 
+        document.getElementById('animProgressBar').innerHTML = (counter/200)*100+"%";
       }
 
       //check to see if we should stop the animation process
@@ -624,7 +620,9 @@ function disconnectTwoNodes(event) {
 ////////////////////////////////////////////////////////////////////////////////
 /////////Section 4: Running training and reading test file//////////////////////
 
+var trainingComplete = false;
 function computeProbabilities() {
+  console.log("beginning training");
   finalNode = "Plane Doesn't Land";
 
   function getParentPermutations(parentList){
@@ -671,10 +669,12 @@ function computeProbabilities() {
       for (var i=0; i<parents[currentNode].length; i++){
         helper(parents[currentNode][i]);
       }
+      console.log(probabilities);
 
       countDict = {};
       trueCountDict = {}
       permutations = getParentPermutations(parents[currentNode]);
+      console.log(permutations);
       for (var i=0; i<permutations.length; i++){
         countDict[permutations[i]] = 0;
         trueCountDict[permutations[i]] = 0;
@@ -725,11 +725,13 @@ function computeProbabilities() {
         prob_dict[prob] = value
       }
       probabilities[currentNode] = prob_dict;
+      console.log(probabilities);
     }
   }
 
   helper(finalNode);
   document.getElementById("certified").innerHTML = "Finished Training";
+  trainingComplete = true;
 }
 
 function readTestFile() {
@@ -768,6 +770,11 @@ function displayTestSpeed() {
 var pauseTesting = false;
 
 function runTests(event) {
+  if (!trainingComplete){
+    alert("Please Compute Probabilities (Train)");
+    return;
+  }
+
   clearResults();
 
   if (testCounter >= testData.length){
@@ -778,36 +785,42 @@ function runTests(event) {
   var finalVariable = "Plane Doesn't Land";
   var dataPoint = testData[testCounter];
 
+  //TODO givens should be more than just the parents, givens should be every node
   var givens = parents[finalVariable];
-
+  //set the values of the givens
   for (var i=0; i<givens.length; i++){
     console.log("parent", givens[i]);
     var givenIndex = features.indexOf(givens[i]);
     setValues[givens[i]] = (dataPoint[givenIndex] == "1");
-    var node = document.getElementById(givens[i]);
-    node.innerHTML += "<br />";
-    node.innerHTML += "<span style='color:red'>"+setValues[givens[i]]+"</span>";
+    //var node = document.getElementById(givens[i]);
+    //node.innerHTML += "<br />";
+    //node.innerHTML += "<span style='color:red'>"+setValues[givens[i]]+"</span>";
   }
 
   console.log("set values", setValues);
   console.log(probabilities);
 
   //populates setValues dictionary
-  function helper(currentNode) {
-    console.log(currentNode);
+  function setValue(currentNode) {
+    console.log("current node", currentNode);
     //base case, no parents, set value
     if (parents[currentNode].length == 0){
       console.log("no parents");
-      if (!currentNode in setValues){
+      if (!(currentNode in setValues)){
+        console.log("node not in set values");
         var probability = probabilities[currentNode][true];
+        console.log("probablity", probability);
         var randomNum = Math.random();
         if (randomNum <= probability){
           setValues[currentNode] = true;
         } else {
           setValues[currentNode] = false;
         }
+        console.log("new set value", setValues[currentNode]);
 
         var node = document.getElementById(currentNode);
+        node.innerHTML += "<br />";
+        node.innerHTML += "Probability True: "+probability+"%";
         node.innerHTML += "<br />";
         node.innerHTML += "<span style='color:red'>"+setValues[currentNode]+"</span>";
       } else {
@@ -822,7 +835,7 @@ function runTests(event) {
       var parentList = parents[currentNode];
       var parentKey = "";
       for (var i=0; i<parentList.length; i++){
-        helper(parentList[i]);
+        setValue(parentList[i]);
         if (setValues[parentList[i]] == true){
           parentKey += parentList[i];
         } else {
@@ -851,7 +864,7 @@ function runTests(event) {
     }
   }
 
-  helper(finalVariable);
+  setValue(finalVariable);
   
   var finalVarIndex = features.indexOf(finalVariable);
   var correct = dataPoint[finalVarIndex];
@@ -879,6 +892,11 @@ function runTests(event) {
 }
 
 function runAllTests(event) {
+  if (!trainingComplete){
+    alert("Please compute probabilities (train)");
+    return;
+  }
+
   var speed = 10000 - document.getElementById("testSlider").value*100;
 
   pauseTesting = false;
@@ -904,69 +922,124 @@ function pauseTestingFunc(event) {
   pauseTesting = true;
 }
 
+//used to know if we have finished assigning given true/false values to nodes
+var finishedAssignments = false;
 function getResults(event) {
+  if (!trainingComplete){
+    alert("Please compute probabilities (train)");
+    return;
+  }
+
   console.log("getting results");
 
+  //get information about givens from propogation table
   var table = document.getElementById("propTable");
   if (!finishedAssignments){
+    var numAssigned = 0;
     for (var i=0; i<nodes.length; i++){
       //get form value
-      var testID = "propForm"+nodes[i];
       var propForm = document.getElementById("propForm"+nodes[i]);
       var propFormVal = propForm.value;
       setValues[nodes[i]] = propFormVal;
 
+      //set the value of the node if it is true or false
       if (propFormVal != "Not Given"){
+        numAssigned += 1;
         var firstNode = document.getElementById(nodes[i]);
         firstNode.innerHTML += "<br />"
         firstNode.innerHTML += "<span style='color:red'>"+propFormVal+"</span>";
       }
+    }
+    if (numAssigned == 0){
+        alert("No set values to assign. Please click \"Get Results\" again.");
     }
     finishedAssignments = true;
     return;
   }
 
   var finalNode = document.getElementById("resultsForm").value;
-  var currentNode = finalNode;
 
-  //keep checking until all parents have assigned value
+  //get the highest unassigned node (to be assigned)
+  var highestUnassigned = getHighestUnassignedValue(finalNode);
+  console.log("Got highest unassigned node", highestUnassigned);
+
+  //get the probability of the highest unassigned node being true
+  var probability_dict = probabilities[highestUnassigned];
+  var key = getProbabilitiesKey(highestUnassigned);
+  console.log("dict", probability_dict);
+  console.log("key", key);
+  var probability = probability_dict[key];
+  console.log("probability", probability);
+  var randomNum = Math.random();
+  console.log(randomNum, probability);
+
+  //set the value of the highest unassigned node
+  if (randomNum < probability){
+    setValues[highestUnassigned] = "True";
+  } else {
+    setValues[highestUnassigned] = "False";
+  }
+
+  //write the value to the highest unassigned node
+  var node = document.getElementById(highestUnassigned);
+  node.innerHTML += "<br />";
+  node.innerHTML += "Probability = "+probability*100+"%";
+  node.innerHTML += "<br />";
+  node.innerHTML += "<span style='color:red'>"+setValues[highestUnassigned]+"</span>";
+  console.log("made it here");
+
+}
+
+function getHighestUnassignedValue(bottomNode) {
+  var highestUnassigned = bottomNode;
   var keepLooping = true;
   while (keepLooping){
     keepLooping = false;
 
-    //check if current node has assigned value
-    var pars = parents[currentNode];
+    //check if highest unassigned has parents, if so then we need to check if parents are assigned
+    var pars = parents[highestUnassigned];
     if (pars.length == 0) {
-      break;
+      return highestUnassigned;
     } else {
       for (var j=0; j<pars.length; j++){
         var parent = pars[j];
         if (setValues[parent] == "Not Given"){
           keepLooping = true;
-          currentNode = parent;
+          highestUnassigned = parent;
         }
       }
     }
   }
-  console.log("Got current node", currentNode);
+  return highestUnassigned;
+}
 
-  var probability = probabilities[currentNode];
-  var randomNum = Math.floor(Math.random()*100);
-  console.log(randomNum, probability);
+function getProbabilitiesKey(nodeName) {
+  //get parent values to know which probability value to use
+  var parentsOfUnassigned = parents[nodeName];
 
-  if (randomNum < probability){
-    setValues[currentNode] = "True";
-  } else {
-    setValues[currentNode] = "False";
+  //if node has no parents, then you just take probability of event occuring
+  if (parentsOfUnassigned.length == 0){
+    return true;
+  } 
+
+  else {
+    var key = ""
+    for (var i=0; i<parentsOfUnassigned.length; i++){
+      var parentName = parentsOfUnassigned[i];
+      var parentValue = setValues[parentName];
+      if (parentValue == "True"){ //if the parent is set to true
+        key += parentName;
+      } else { //if the parent is set to false
+        key += "not"+parentName;
+      }
+
+      if (i+1 != parentsOfUnassigned.length){
+        key += "&";
+      }
+    }
+
+    return key;
   }
-
-  var node = document.getElementById(currentNode);
-  node.innerHTML += "<br />";
-  node.innerHTML += "Probability = "+probability+"%";
-  node.innerHTML += "<br />";
-  node.innerHTML += "<span style='color:red'>"+setValues[currentNode]+"</span>";
-  console.log("made it here");
-
 }
 
 function clearResults() {

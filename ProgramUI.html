@@ -52,27 +52,35 @@
 
   <h1>Bayes Net Debugger</h1>
 
-  <canvas id="Drawer" style="position: absolute; color: red"></canvas>
-
   <table>
   	<tr>
+  		<!--Create the zone where users can build their bayes net graph -->
   		<td><div id="dropzone" class="droppable">
-  			<div id="completionRate"></div>
+  			<div id="completionRate"></div> <!--Used to see how far complete the animation is-->
   		</div></td>
 
+  		<!--Create animation form -->
   		<td class="animation" style="left: 820px;">
   			<div>Choose node to animate:</div>
   			<form id="animateForm"></form>
+  			<!--Slider to select speed of RSVP animation-->
   			<div>
   				<table><tr>
   					<td><input type="range" min="1" max="100" value="50" id="slider" onclick="displayAnimationSpeed()"></td>
   					<td id="speedDisplay"></td>
   				</tr></table>
   			</div>
+  			<!--Buttons to start and stop animation-->
   			<button onclick="animateNodes(event)">Start Animation</button>
   			<div></div>
   			<button onclick="stopAnimation(event)">Stop Animation</button>
+  			<!--Create progress bar for animation-->
+  			<div style="width: 200px; height: 20px; background-color: grey; text-align: center; margin-top: 10px">
+  				<div id="animProgressBar" style="width: 0px; background-color: green; height: 20px;">0%</div>
+  			</div>
   		</td>
+
+  		<!--Connect two nodes forms-->
   		<td class="animation" style="left: 1020px;">
   			<div>Choose two nodes to connect:</div>
   			<table>
@@ -90,9 +98,12 @@
   				</tr>
   			</table>
   			<div style="padding-top: 5px"></div>
+  			<!--Buttons to connect and disconnect nodes-->
   			<button id="ConnectButton" onclick="connectTwoNodes(event)">Connect!</button>
   			<button id="DisconnectButton" onclick="disconnectTwoNodes(event)">Disconnect</button>
   		</td>
+
+  		<!--Create user interface for testing results-->
   		<td class="animation" style="left: 820px; top: 300px;">
   			<div style="font-size: 130%"><b>TESTING</b></div>
   			<div>Select givens:</div>
@@ -105,6 +116,8 @@
   			<button id="PropogateButton" onclick="getResults(event)">Get Results! (Stepper)</button>
   			<button onclick="clearResults()">Clear Results</button>
   		</td>
+
+  		<!--Create buttons for testing-->
   		<td class="animation" style="top: 300px; left: 1100px">
   			<div>Test File:</div>
   			<input type="file" name="file" id="testFiles" />
@@ -139,12 +152,9 @@
   </form>
   <button style="position: absolute; top: 600px; left: 400px" onclick="deleteNode(event)">Delete Node</button>
 
-  <button style="position: absolute; top: 600px; left: 500px" onclick="computeProbabilities()">Compute Probabilities (Train)</button>
-  <div style="position: absolute; top: 630px; left: 550px;" id="certified"></div>
+  <button style="position: absolute; top: 600px; left: 570px" onclick="computeProbabilities()">Compute Probabilities (Train)</button>
+  <div style="position: absolute; top: 630px; left: 570px;" id="certified"></div>
 
-<!--<svg width="4" height="124" style="position: absolute; top: 218; left: 358; stroke: blue">
-  <line id="line" x1="0" y1="0" x2="4" y2="124" style="stroke-width:2; position: absolute;" />
-</svg>-->
 
   <input style="position: absolute; top: 600px; left: 10px;" type="file" id="files" name="file" />
   <button style="position: absolute; top: 600px; left: 200px;" id="entire" onclick="readDataFile()">Upload Data</button>
