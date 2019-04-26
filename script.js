@@ -1,4 +1,8 @@
-var nextID = 0;
+
+//////////////////////////////////////////////////////////////////////////////
+/////////////Section 0: Declaring instance variables//////////////////////////
+//////////////////////////////////////////////////////////////////////////////
+
 var nextNodeName = []
 var nodes = []
 var parents = {}
@@ -13,14 +17,17 @@ var testData = []
 var testCounter = 0;
 var testCorrect = 0;
 
-//for stopping the animation
-var stopAnimating = false;
-
 //for propogating results
 var finishedAssignments = false;
 var setValues = {}
 var probabilities = {}
 
+
+////////////////////////////////////////////////////////////////////////////////
+///////////////Section 1: Uploading training Data///////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+
+//event handler for when the user selects a file to upload
 function handleFileSelect(evt) {
     var files = evt.target.files; // FileList object
 
@@ -35,50 +42,16 @@ function handleFileSelect(evt) {
       var reader = new FileReader();
 
     }
-    //document.getElementById('list').innerHTML = '<ul>' + output.join('') + '</ul>';
 }
 
-function generateRandomColor() {
-  var randomIndex = Math.floor(Math.random()*colorOptions.length);
-  color = colorOptions[randomIndex];
-  var index = colorOptions.indexOf(color);
-  colorOptions.splice(index,1);
-  return color;
-}
-
+//add event listener
 document.getElementById('files').addEventListener('change', handleFileSelect, false);
 
-function readTestFile() {
-  var testFiles = document.getElementById('testFiles').files;
-  if (!testFiles.length){
-    alert("Please upload test file.");
-    return;
-  }
-
-  var file = testFiles[0];
-  var start = 0;
-  var stop = file.size;
-
-  var reader = new FileReader();
-
-  reader.onloadend = function(evt){
-    if (evt.target.readyState == FileReader.DONE){
-      var info = evt.target.result.split('\n');
-
-      for (var i=1; i<info.length-1; i++){
-        testData.push(info[i].split(','));
-      }
-    }
-  }
-
-  reader.readAsBinaryString(file);
-
-  document.getElementById("TestLoaded").style.display = "block";
-  console.log("loaded it");
-}
-
+//read training data file that was uploaded and populate data structures in script.js
 function readDataFile() {
   var files = document.getElementById('files').files;
+
+  //make sure a file has been uploaded
   if (!files.length){
     alert('Please select a file');
     return;
@@ -90,11 +63,12 @@ function readDataFile() {
 
   var reader = new FileReader();
 
+  //populate data array, features array and make visible animate forms
   reader.onloadend = function(evt){
     if (evt.target.readyState == FileReader.DONE){
       var info = evt.target.result.split('\n');
 
-      //populate features
+      //populate list of features
       features = info[0].slice(0,-1).split(',');
 
       //populate colors dictionary
@@ -108,172 +82,177 @@ function readDataFile() {
       }
       
       document.getElementById('byte_range').textContent = "Data Successfully Loaded";
-      //document.getElementById('byte_content').textContent = "Available Features: " + features;
 
-      //create animate form
+      //create animate form (will populate with options later)
       var form = document.getElementById("animateForm");
-
       var select = document.createElement("select");
       select.setAttribute('name','animationOptions');
       select.setAttribute('id','animationOptions');
       select.setAttribute('multiple', true);
-
-      /*
-      for (var j=0; j<features.length; j++){
-        var option = document.createElement("option");
-        option.setAttribute('value', features[j]);
-        option.innerHTML = features[j];
-        select.appendChild(option);
-      }*/
       form.appendChild(select);
 
+      //make visible all elements that are a part of the animation class
       var animations = document.getElementsByClassName("animation");
-
       for (var i=0; i<animations.length; i++){
         animations[i].style.display = "block";
       }
     }
   };
 
+  //get parts of the file to read and read those parts
   var blob = file.slice(start, stop+1);
   reader.readAsBinaryString(blob);
 }
 
-//document.getElementById('entire').addEventListener('click', function(event){
-  //readDataFile();
-//}, false);
-
-function displayRSVPSpeed() {
-  var speed = document.getElementById("slider").value;
-  document.getElementById("speedDisplay").innerHTML = speed;
+/////////////////////Helper Functions for reading data file/////////////////////
+function generateRandomColor() {
+  var randomIndex = Math.floor(Math.random()*colorOptions.length);
+  color = colorOptions[randomIndex];
+  var index = colorOptions.indexOf(color);
+  colorOptions.splice(index,1);
+  return color;
 }
+////////////////////////////////////////////////////////////////////////////////
 
-function displayTestSpeed() {
-  var speed = document.getElementById("testSlider").value;
-  document.getElementById("testSpeedDisplay").innerHTML = speed;
-}
 
-function animateNodes(event) {
-  if (data.length == 0){
-    alert("Please upload data");
-    return;
-  } else if (nodes.length == 0){
-    alert("Please create a node");
-    return;
-  }
+////////////////////////////////////////////////////////////////////////////////
+///////////////////Section 2: Adding, Deleting and Moving Nodes/////////////////
+////////////////////////////////////////////////////////////////////////////////
 
-  var counter = 0;
+//counter to temporarily assign IDs to unamed nodes
+var nextID = 0;
 
-  //Determine which nodes to animate (which were selected)
-  var animationSelect = document.getElementById("animationOptions");
-  var tags = [];
-  var options = animationSelect.options;
-  for (var i=0; i<options.length; i++){
-    if (animationSelect.options[i].selected){
-      tags.push(animationSelect.options[i].value);
-    }
-  }
-
-  //get slider value
-  var slider = document.getElementById("slider");
-  var speed = 1000 - (slider.value*10);
-  
-  function myloop() {
-    setTimeout(function () {
-
-      for (var j=0; j<tags.length; j++){
-        var elem = document.getElementById(tags[j])
-        var dataIndex = features.indexOf(tags[j]);
-
-        if (!tags.includes(nodes[j])){
-          continue;
-        }
-
-        //console.log("top", elem.offsetTop, elem.offsetLeft);
-
-        if (counter%2 == 1){
-          elem.style.color = "white";
-        } 
-
-        else {
-          if (data[counter/2][dataIndex] == "1"){
-            elem.style.color = colors[tags[j]];
-          } else {
-            elem.style.color = "white";
-          }
-        }
-
-      }
-      counter++;
-
-      if (counter%2 == 0){
-        document.getElementById('completionRate').innerHTML = "Animation is " + counter/2 + " % finished."; 
-      }
-
-      if (!stopAnimating){
-        if (counter/2 < data.length){
-          myloop();
-        }
-      } else {
-        for (var j=0; j<tags.length; j++){
-          var tagElem = document.getElementById(tags[j]);
-          tagElem.style.color = "white";
-        }
-      }
-    }, speed)
-  }
-
-  myloop();
-  stopAnimating = false;
-}
-
-function stopAnimation() {
-  console.log("No animating");
-  stopAnimating = true;
-}
-
+//create a new node on the board
 function createNewNode(event) {
+  //make sure data has been uploaded and possible features exist
   if (features.length == 0){
     alert("Please upload data first");
     return;
   }
 
+  //create new node and set attributes
   var newNode = document.createElement("div");
   newNode.className = "node";
   newNode.id = "node"+String(nextID);
   newNode.style.position = "absolute";
   newNode.style.top = "670px";
 
+  //update nextID counter.
   nextID += 1;
 
+  //allows node to be dragged an dropped to different areas of the webapp
   newNode.onmousedown = function click() {
     dragAndDrop(newNode);
   };
+
+  //append new node to documeent body, add node ID to array of nodes
   document.body.appendChild(newNode);
   nextNodeName.push(newNode.id);
   nodes.push(newNode.id);
 
+  //create the form that will allow you to name a node
   createNewForm(newNode.id);
-
 }
 
+/////////////////Helper functions for creating a new node///////////////////////
+
+//Found example on the internet. TODO site author
+function dragAndDrop(node_id) {
+
+  function move(event) { // (1) start the process
+
+    let shiftX = event.clientX - node_id.getBoundingClientRect().left;
+    let shiftY = event.clientY - node_id.getBoundingClientRect().top;
+
+    // (2) prepare to moving: make absolute and on top by z-index
+    node_id.style.position = 'absolute';
+    node_id.style.zIndex = 1000;
+    // move it out of any current parents directly into body
+    // to make it positioned relative to the body
+    document.body.append(node_id);
+    // ...and put that absolutely positioned ball under the cursor
+
+    moveAt(event.pageX, event.pageY);
+
+    // centers the node at (pageX, pageY) coordinates
+    function moveAt(pageX, pageY) {
+      node_id.style.left = pageX - shiftX + 'px';
+      node_id.style.top = pageY - shiftY + 'px';
+    }
+
+    function onMouseMove(event) {
+      moveAt(event.pageX, event.pageY);
+
+      node_id.hidden = true;
+      let elemBelow = document.elementFromPoint(event.clientX, event.clientY);
+      node_id.hidden = false;
+
+      if (!elemBelow) return;
+
+      let droppableBelow = elemBelow.closest('.droppable');
+      if (currentDroppable != droppableBelow){
+        if (currentDroppable) {
+          leaveDroppable(currentDroppable);
+        }
+        currentDroppable = droppableBelow;
+        if (currentDroppable) {
+          enterDroppable(currentDroppable);
+        }
+      }
+    }
+
+    // (3) move the node on mousemove
+    document.addEventListener('mousemove', onMouseMove);
+
+    // (4) drop the node, remove unneeded handlers
+    node_id.onmouseup = function() {
+      document.removeEventListener('mousemove', onMouseMove);
+      node_id.onmouseup = null;
+    };
+
+  };
+
+  function enterDroppable(elem){
+      //elem.style.background = 'pink';
+  }
+
+  function leaveDroppable(elem){
+      //elem.style.background = '';
+  }
+
+  let currentDroppable = null;
+
+  move(event);
+
+  node_id.ondragstart = function() {
+    return false;
+  }
+}
+
+/**create form that will be used to name the node
+ **nodeID: Id of the node that we will be renaming
+*/
 function createNewForm(nodeID) {
+  //create form and add style
   var form = document.createElement("form");
   form.setAttribute('id',nodeID+"Form");
   form.style.position = "absolute";
   form.style.top = "730px";
 
-  //create inputs
+  //create inputs, form is given an ID with the existing node's name, that way the form is attached to the node
   var select = document.createElement("select");
   select.setAttribute('name',nodeID+"Select");
   select.setAttribute('id',nodeID+"Select");
 
+  //create options to name the node (which are all of the existing features that don't have a node already assigned)
   for (var i=0; i<features.length; i++){
-    var option = document.createElement("option");
-    option.setAttribute('value',features[i]);
-    option.innerHTML=features[i];
+    if (!nodes.includes(features[i])){
+      var option = document.createElement("option");
+      option.setAttribute('value',features[i]);
+      option.innerHTML=features[i];
 
-    select.appendChild(option);
+      select.appendChild(option);
+    }
   }
 
   //create submit button
@@ -281,12 +260,15 @@ function createNewForm(nodeID) {
   input.setAttribute('type','button');
   input.setAttribute('value','Submit');
   input.onclick = function() {
+    //when the submit button is clicked, add that particular value (node name) to the node
     addNodeName(nodeID);
   }
 
+  //append options and submit button to form
   form.appendChild(select);
   form.appendChild(input);
 
+  //append form to the body of the document
   document.body.appendChild(form);
 }
 
@@ -295,6 +277,7 @@ function createNewForm(nodeID) {
 (2) Add option to animate that particular node
 (3) Add option to connect that particular node
 (4) Add option to get results for that paricular node
+(5) Add option to delete that particular node
 */
 function addNodeName(nodeID) {
   
@@ -444,83 +427,116 @@ function deleteNode(event) {
   //remove from delete options
   var delOption = document.getElementById("delOption"+nodeID);
   document.getElementById("deleteValue").removeChild(delOption);
-
 }
 
-function dragAndDrop(node_id) {
+////////////////////////////////////////////////////////////////////////////////
 
-  function move(event) { // (1) start the process
 
-    let shiftX = event.clientX - node_id.getBoundingClientRect().left;
-    let shiftY = event.clientY - node_id.getBoundingClientRect().top;
+////////////////////////////////////////////////////////////////////////////////
+//////////////Section 3: Animating and Connecting Nodes/////////////////////////
+////////////////////////////////////////////////////////////////////////////////
 
-    // (2) prepare to moving: make absolute and on top by z-index
-    node_id.style.position = 'absolute';
-    node_id.style.zIndex = 1000;
-    // move it out of any current parents directly into body
-    // to make it positioned relative to the body
-    document.body.append(node_id);
-    // ...and put that absolutely positioned ball under the cursor
+//for stopping the animation
+var stopAnimating = false;
 
-    moveAt(event.pageX, event.pageY);
+//function which causes nodes to blink on and off
+function animateNodes(event) {
+  //checks to make sure data has been uploaded and nodes exist
+  if (data.length == 0){
+    alert("Please upload data");
+    return;
+  } else if (nodes.length == 0){
+    alert("Please create a node");
+    return;
+  }
 
-    // centers the ball at (pageX, pageY) coordinates
-    function moveAt(pageX, pageY) {
-      node_id.style.left = pageX - shiftX + 'px';
-      node_id.style.top = pageY - shiftY + 'px';
+  //Determine which nodes to animate (which were selected)
+  var animationSelect = document.getElementById("animationOptions");
+  var nodesToAnimate = [];
+  var options = animationSelect.options;
+  for (var i=0; i<options.length; i++){
+    if (animationSelect.options[i].selected){
+      nodesToAnimate.push(animationSelect.options[i].value);
     }
+  }
 
-    function onMouseMove(event) {
-      moveAt(event.pageX, event.pageY);
+  //get speed at which to animate nodes
+  var slider = document.getElementById("slider");
+  var speed = 1000 - (slider.value*10);
+  
+  //have counter to keep track of data point we're displaying on node animation (RSVP)
+  //also used to keep track of how many times we've looped
+  var counter = 0;
 
-      node_id.hidden = true;
-      let elemBelow = document.elementFromPoint(event.clientX, event.clientY);
-      node_id.hidden = false;
+  function myloop() {
+    setTimeout(function () {
 
-      if (!elemBelow) return;
+      //determine which nodes to animate and animate them (change the text color)
+      for (var j=0; j<nodesToAnimate.length; j++){
+        var nodeToAnimate = nodesToAnimate[j];
+        var elem = document.getElementById(nodeToAnimate)
+        var dataIndex = features.indexOf(nodeToAnimate);
 
-      let droppableBelow = elemBelow.closest('.droppable');
-      if (currentDroppable != droppableBelow){
-        if (currentDroppable) {
-          leaveDroppable(currentDroppable);
+        if (!nodesToAnimate.includes(nodes[j])){
+          console.log("THIS WEIRD CASE THAT I WAS THINKING OF DELETING");
+          continue;
         }
-        currentDroppable = droppableBelow;
-        if (currentDroppable) {
-          enterDroppable(currentDroppable);
+
+        //only change the color of the node every other loop so that we can get the blinking effect
+        if (counter%2 == 1){
+          elem.style.color = "white";
+        } 
+
+        //change color of node if data value is true (==1)
+        else {
+          if (data[counter/2][dataIndex] == "1"){
+            elem.style.color = colors[nodeToAnimate];
+          } else {
+            elem.style.color = "white";
+          }
+        }
+
+      }
+      counter++;
+
+      //used to keep track of how far along we are in the animation process
+      if (counter%2 == 0){
+        document.getElementById('completionRate').innerHTML = "Animation is " + counter/2 + " % finished."; 
+      }
+
+      //check to see if we should stop the animation process
+      if (!stopAnimating && counter/2 < data.length){
+          myloop();
+      } 
+      //if stopping the animation process, convert all nodes back to their original white color
+      else {
+        for (var j=0; j<nodesToAnimate.length; j++){
+          var nodeElem = document.getElementById(nodesToAnimate[j]);
+          nodeElem.style.color = "white";
         }
       }
-    }
-
-    // (3) move the ball on mousemove
-    document.addEventListener('mousemove', onMouseMove);
-
-    // (4) drop the ball, remove unneeded handlers
-    node_id.onmouseup = function() {
-      document.removeEventListener('mousemove', onMouseMove);
-      node_id.onmouseup = null;
-    };
-
-  };
-
-  function enterDroppable(elem){
-      //elem.style.background = 'pink';
+    }, speed)
   }
 
-  function leaveDroppable(elem){
-      //elem.style.background = '';
-  }
+  myloop();
+  //once we've stopped animating, reset the boolean back to false
+  //so it could be changed to true again when we start animating again
+  stopAnimating = false;
+}
 
-  let currentDroppable = null;
+//Once the user has selected a speed at which to animate nodes, display this speed
+function displayAnimationSpeed() {
+  var speed = document.getElementById("slider").value;
+  document.getElementById("speedDisplay").innerHTML = speed;
+}
 
-  move(event);
-
-  node_id.ondragstart = function() {
-    return false;
-  }
+//Stop the animation process from happening by changing the stopAnimating boolean
+function stopAnimation() {
+  console.log("No animating");
+  stopAnimating = true;
 }
 
 function connectTwoNodes(event) {
-  console.log("Connecting");
   if (nodes.length == 0){
     alert("Please create nodes");
     return;
@@ -534,14 +550,14 @@ function connectTwoNodes(event) {
     return;
   }
 
+  //add parent to the parents list of child
   if (secondNode in parents){
-    var list = parents[secondNode];
-    list.push(parent);
-    parents[secondNode] = list;
+    parents[secondNode].push(parent);
   } else {
     parents[secondNode] = [parent];
   }
 
+  //connect nodes on front-end
   var node1 = document.getElementById(parent);
   var node2 = document.getElementById(secondNode);
 
@@ -602,6 +618,153 @@ function disconnectTwoNodes(event) {
   parents[secondNode] = parentList;
 }
 
+////////////////////////////////////////////////////////////////////////////////
+
+
+////////////////////////////////////////////////////////////////////////////////
+/////////Section 4: Running training and reading test file//////////////////////
+
+function computeProbabilities() {
+  finalNode = "Plane Doesn't Land";
+
+  function getParentPermutations(parentList){
+    if (parentList.length == 1){
+      parent = parentList[0];
+      return [parent, "not"+parent];
+    } 
+
+    else {
+      var newParentList = parentList.slice(0);
+      var parent = newParentList.shift()
+      prev_perms = getParentPermutations(newParentList);
+      newPermList = []
+      for (var i=0; i<prev_perms.length; i++){
+        newPermList.push(parent+"&"+prev_perms[i]);
+        newPermList.push("not"+parent+"&"+prev_perms[i]);
+      }
+      return newPermList;
+    }
+  }
+
+  function helper(currentNode) {
+    if (parents[currentNode].length == 0){
+      //if node doesn't have any parents just compute probability of true and false
+      var True = 0;
+      var False = 0;
+      var total = 0;
+      var nodeIndex = features.indexOf(currentNode);
+      for (var i=0; i<data.length; i++){
+        total += 1;
+        if (data[i][nodeIndex] == "1"){
+          True += 1;
+        } else {
+          False += 1;
+        }
+      }
+
+      prob_dict = {true: True/total, false: False/total};
+      probabilities[currentNode] = prob_dict;
+    } 
+
+    //node has parents
+    else {
+      for (var i=0; i<parents[currentNode].length; i++){
+        helper(parents[currentNode][i]);
+      }
+
+      countDict = {};
+      trueCountDict = {}
+      permutations = getParentPermutations(parents[currentNode]);
+      for (var i=0; i<permutations.length; i++){
+        countDict[permutations[i]] = 0;
+        trueCountDict[permutations[i]] = 0;
+      }
+
+      //loop through all data points
+      for (var j=0; j<data.length; j++){
+
+        //for each data point check if a particular permutation matches that data point
+        for (var i=0; i<permutations.length; i++){
+          parentNodes = permutations[i].split("&");
+          var valid = true;
+
+          //separate parent node names in permutations and check if they're true or false;
+          for (var k=0; k<parentNodes.length; k++){
+            //if one of the parent nodes contains a not
+            if (parentNodes[k].includes("not")){
+              nodeName = parentNodes[k].slice(3,parentNodes[k].length);
+              nodeIndex = features.indexOf(nodeName);
+
+              if (data[j][nodeIndex] != "0"){
+                valid = false;
+                break;
+              }
+            } else {
+              nodeIndex = features.indexOf(parentNodes[k]);
+              if (data[j][nodeIndex] != "1"){
+                valid = false;
+                break;
+              }
+            }
+          }
+
+          if (valid){
+            countDict[permutations[i]] += 1;
+            var finalNodeIndex = features.indexOf(currentNode);
+            if (data[j][finalNodeIndex] == "1"){
+              trueCountDict[permutations[i]] += 1;
+            }
+          }
+        }
+
+      }
+
+      prob_dict = {}
+      for (var prob in countDict){
+        value = trueCountDict[prob]/countDict[prob];
+        prob_dict[prob] = value
+      }
+      probabilities[currentNode] = prob_dict;
+    }
+  }
+
+  helper(finalNode);
+  document.getElementById("certified").innerHTML = "Finished Training";
+}
+
+function readTestFile() {
+  var testFiles = document.getElementById('testFiles').files;
+  if (!testFiles.length){
+    alert("Please upload test file.");
+    return;
+  }
+
+  var file = testFiles[0];
+  var start = 0;
+  var stop = file.size;
+
+  var reader = new FileReader();
+
+  reader.onloadend = function(evt){
+    if (evt.target.readyState == FileReader.DONE){
+      var info = evt.target.result.split('\n');
+
+      for (var i=1; i<info.length-1; i++){
+        testData.push(info[i].split(','));
+      }
+    }
+  }
+
+  reader.readAsBinaryString(file);
+
+  document.getElementById("TestLoaded").style.display = "block";
+}
+
+function displayTestSpeed() {
+  var speed = document.getElementById("testSlider").value;
+  document.getElementById("testSpeedDisplay").innerHTML = speed;
+}
+
 var pauseTesting = false;
 
 function runTests(event) {
@@ -618,6 +781,7 @@ function runTests(event) {
   var givens = parents[finalVariable];
 
   for (var i=0; i<givens.length; i++){
+    console.log("parent", givens[i]);
     var givenIndex = features.indexOf(givens[i]);
     setValues[givens[i]] = (dataPoint[givenIndex] == "1");
     var node = document.getElementById(givens[i]);
@@ -625,13 +789,18 @@ function runTests(event) {
     node.innerHTML += "<span style='color:red'>"+setValues[givens[i]]+"</span>";
   }
 
+  console.log("set values", setValues);
+  console.log(probabilities);
+
   //populates setValues dictionary
   function helper(currentNode) {
+    console.log(currentNode);
     //base case, no parents, set value
     if (parents[currentNode].length == 0){
+      console.log("no parents");
       if (!currentNode in setValues){
-        var probability = getProbability(currentNode, []);
-        var randomNum = Math.floor(Math.random()*100);
+        var probability = probabilities[currentNode][true];
+        var randomNum = Math.random();
         if (randomNum <= probability){
           setValues[currentNode] = true;
         } else {
@@ -642,18 +811,32 @@ function runTests(event) {
         node.innerHTML += "<br />";
         node.innerHTML += "<span style='color:red'>"+setValues[currentNode]+"</span>";
       } else {
-        return;
+        var node = document.getElementById(currentNode);
+        node.innerHTML += "<br />";
+        node.innerHTML += "<span style='color:red'>"+setValues[currentNode]+"</span>";
       }
     }
 
     //recursive step we've set all the parents
     else {
       var parentList = parents[currentNode];
-      for (var i=0; i<parentList; i++){
+      var parentKey = "";
+      for (var i=0; i<parentList.length; i++){
         helper(parentList[i]);
+        if (setValues[parentList[i]] == true){
+          parentKey += parentList[i];
+        } else {
+          parentKey += "not"+parentList[i];
+        }
+        if (i+1 != parentList.length){
+          parentKey += "&";
+        }
       }
-      var finalprobability = getProbability(currentNode, parentList);
-      var finalrandomNum = Math.floor(Math.random()*100);
+
+      console.log("parent key", parentKey);
+
+      var finalprobability = probabilities[currentNode][parentKey];
+      var finalrandomNum = Math.random();
       if (finalrandomNum <= finalprobability){
           setValues[currentNode] = true;
         } else {
@@ -662,7 +845,7 @@ function runTests(event) {
 
       var node = document.getElementById(currentNode);
       node.innerHTML += "<br />";
-      node.innerHTML += "Probability True: " + finalprobability + "%";
+      node.innerHTML += "Probability True: " + finalprobability*100 + "%";
       node.innerHTML += "<br />";
       node.innerHTML += "<span style='color:red'>Actual: "+setValues[currentNode]+"</span>";
     }
@@ -675,7 +858,7 @@ function runTests(event) {
   if (setValues[finalVariable] == (correct == "1")){
     testCorrect += 1;
   }
-  document.getElementById(finalVariable).innerHTML += "<br /><span>Expeced: "+(correct==1)+"</span>";
+  document.getElementById(finalVariable).innerHTML += "<br /><span>Expected: "+(correct==1)+"</span>";
   //var corr = document.getElementById("CorrectVal");
   //corr.innerHTML="Correct Value"
 
@@ -767,7 +950,7 @@ function getResults(event) {
   }
   console.log("Got current node", currentNode);
 
-  var probability = getProbability(currentNode, parents[currentNode])
+  var probability = probabilities[currentNode];
   var randomNum = Math.floor(Math.random()*100);
   console.log(randomNum, probability);
 
@@ -783,134 +966,6 @@ function getResults(event) {
   node.innerHTML += "<br />";
   node.innerHTML += "<span style='color:red'>"+setValues[currentNode]+"</span>";
   console.log("made it here");
-
-}
-
-
-function computeProbabilities() {
-  finalNode = "Plane Doesn't Land";
-
-  function getParentPermutations(parentList){
-    if (parentList.length == 1){
-      parent = parentList[0];
-      return [parent, "not"+parent];
-    } 
-
-    else {
-      newParentList = parentList;
-      var parent = newParentList.shift()
-      prev_perms = getParentPermutations(newParentList);
-      newPermList = []
-      for (var i=0; i<prev_perms.length; i++){
-        newPermList.push(parent+"&"+prev_perms[i]);
-        newPermList.push("not"+parent+"&"+prev_perms[i]);
-      }
-      return newPermList;
-    }
-  }
-
-  function helper(currentNode) {
-    if (parents[currentNode].length == 0){
-      //if node doesn't have any parents just compute probability of true and false
-      var True = 0;
-      var False = 0;
-      var total = 0;
-      var nodeIndex = features.indexOf(currentNode);
-      for (var i=0; i<data.length; i++){
-        total += 1;
-        if (data[i] == "1"){
-          True += 1;
-        } else {
-          False += 1;
-        }
-      }
-
-      prob_dict = {true: True/total, false: False/total};
-    } 
-
-    //recursive step
-    else {
-      countDict = {};
-      trueCountDict = {}
-      permutations = getParentPermutations(parents[currentNode]);
-      for (var i=0; i<permutations.length; i++){
-        countDict[permutations[i]] = 0;
-        trueCountDict[permutations[i]] = 0;
-      }
-
-      //loop through all data points
-      for (var j=0; j<data.length; j++){
-
-        //for each data point check if a particular permutation matches that data point
-        for (var i=0; i<permutations.length; i++){
-          parentNodes = permutations[i].split("&");
-          var valid = true;
-
-          //separate parent node names in permutations and check if they're true or false;
-          for (var k=0; k<parentNodes.length; k++){
-            if (parentNodes[k].includes("not")){
-              nodeName = parentNodes[k];
-              nodeName.splice(0,3);
-              console.log(nodeName);
-              nodeIndex = features.indexOf(nodeName);
-
-              if (!data[i][nodeIndex] == "0"){
-                valid = false;
-                break;
-              }
-            } else {
-              nodeIndex = features.indexOf(parentNodes[k]);
-              if (!data[i][nodeIndex] == "1"){
-                valid = false;
-                break;
-              }
-            }
-          }
-
-          if (!valid){
-            continue;
-          }
-        }
-
-      }
-      
-    }
-  }
-
-  helper(finalNode);
-
-}
-
-function getProbability(child, parentList) {
-  ///console.log("Getting probability");
-  //console.log(child, parentList);
-  var total = 0
-  var featureCount = 0;
-
-  for (var i=0; i<data.length; i++){
-    var count = true;
-    for (var j=0; j<parentList.length; j++){
-      var parent = parentList[j];
-      var CorrectVal = (setValues[parent] == "True");
-      var DataVal = (data[i][j] == "1");
-      if (CorrectVal != DataVal){
-        count = false;
-      }
-    }
-    if (count){
-      total += 1;
-      var featureIndex = features.indexOf(child);
-      if (data[i][featureIndex] == "1"){
-        featureCount += 1;
-      }
-    }
-  }
-  if (total == 0){
-    return 0;
-  }
-
-  //console.log("numbers", total, featureCount);
-  return Math.round((featureCount/total)*100);
 
 }
 

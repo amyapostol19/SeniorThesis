@@ -65,7 +65,7 @@
   			<form id="animateForm"></form>
   			<div>
   				<table><tr>
-  					<td><input type="range" min="1" max="100" value="50" id="slider" onclick="displayRSVPSpeed()"></td>
+  					<td><input type="range" min="1" max="100" value="50" id="slider" onclick="displayAnimationSpeed()"></td>
   					<td id="speedDisplay"></td>
   				</tr></table>
   			</div>
@@ -140,6 +140,7 @@
   <button style="position: absolute; top: 600px; left: 400px" onclick="deleteNode(event)">Delete Node</button>
 
   <button style="position: absolute; top: 600px; left: 500px" onclick="computeProbabilities()">Compute Probabilities (Train)</button>
+  <div style="position: absolute; top: 630px; left: 550px;" id="certified"></div>
 
 <!--<svg width="4" height="124" style="position: absolute; top: 218; left: 358; stroke: blue">
   <line id="line" x1="0" y1="0" x2="4" y2="124" style="stroke-width:2; position: absolute;" />
