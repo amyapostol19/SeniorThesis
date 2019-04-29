@@ -77,7 +77,7 @@ function readDataFile() {
 
       //populate data array
       for (var i=1; i<info.length; i++){
-        data.push(info[i].split(','));
+        data.push(info[i].slice(0,-1).split(','));
       }
       
       document.getElementById('byte_range').textContent = "Data Successfully Loaded";
@@ -295,6 +295,10 @@ function addNodeName(nodeID) {
   var form = document.getElementById(nodeID+"Form");
   document.body.removeChild(form);
 
+  addNodeHelper(nodeName);  
+}
+
+function addNodeHelper(nodeName) {
   //append new name to delete node form
   var delOption = document.createElement("option");
   delOption.setAttribute('value', nodeName);
@@ -383,7 +387,10 @@ function deleteNode(event) {
     alert("Please select a node to delete");
     return;
   }
+  deleteNodeHelper(nodeID); 
+}
 
+function deleteNodeHelper(nodeID) {
   //remove from Nodex
   var nodeIndex = nodes.indexOf(nodeID);
   nodes.splice(nodeIndex, 1);
@@ -616,9 +623,232 @@ function disconnectTwoNodes(event) {
 
 ////////////////////////////////////////////////////////////////////////////////
 
+////////////////////////////////////////////////////////////////////////////////
+///////////////Section 4: Splitting and Merging Nodes///////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+function createSplitNodeForm() {
+
+  //create table that will hold the split node information
+  var splitTable = document.createElement("table");
+  splitTable.style.position = "absolute";
+  splitTable.style.top = "630px";
+  splitTable.style.left = "800px";
+  splitTable.style.color = "black";
+  splitTable.style.background = "white";
+  //splitTable.style.border = "white";
+
+  //create form to input which node to split
+  var splitRow = document.createElement("tr");
+  var splitCol01 = document.createElement("td");
+  splitCol01.innerHTML = "Choose node to split:";
+  splitCol01.style.width = "100px";
+  splitRow.appendChild(splitCol01);
+
+  var splitCol02 = document.createElement("td");
+  splitCol02.style.width = "100px";
+  var splitForm = document.createElement("form");
+  var splitSelect = document.createElement("select");
+  //populate form with node values so user can choose which node to split
+  for (var i=0; i<nodes.length; i++){
+    var splitOption = document.createElement("option");
+    splitOption.innerHTML = nodes[i];
+    splitSelect.appendChild(splitOption);
+  }
+  splitForm.appendChild(splitSelect);
+  splitCol02.appendChild(splitForm);
+  splitRow.appendChild(splitCol02);
+  splitTable.appendChild(splitRow);
+
+  //create form to list what column of data should be in the split node
+  var splitRow1 = document.createElement("tr");
+  var splitCol11 = document.createElement("td");
+  splitCol11.innerHTML = "Choose column of data for first new node:";
+  splitRow1.appendChild(splitCol11);
+
+  var splitCol12 = document.createElement("td");
+  var splitForm1 = document.createElement("form");
+  var splitSelect1 = document.createElement("select");
+  for (var i=0; i<features.length; i++){
+    var splitOption1 = document.createElement("option");
+    splitOption1.innerHTML = i;
+    splitSelect1.appendChild(splitOption1);
+  }
+  splitForm1.appendChild(splitSelect1);
+  splitCol12.appendChild(splitForm1);
+  splitRow1.appendChild(splitCol12);
+  splitTable.appendChild(splitRow1);
+
+  //create form to choose the second column of data to be in the split node
+  var splitRow2 = document.createElement("tr");
+  var splitCol21 = document.createElement("td");
+  splitCol21.innerHTML = "Choose column of data for second new node:";
+  splitRow2.appendChild(splitCol21);
+
+  var splitCol22 = document.createElement("td");
+  var splitForm2 = document.createElement("form");
+  var splitSelect2 = document.createElement("select");
+  for (var i=0; i<features.length; i++){
+    var splitOption2 = document.createElement("option");
+    splitOption2.innerHTML = i;
+    splitSelect2.appendChild(splitOption2);
+  }
+  splitForm2.appendChild(splitSelect2);
+  splitCol22.appendChild(splitForm2);
+  splitRow2.appendChild(splitCol22);
+  splitTable.appendChild(splitRow2);
+
+  var splitRow3 = document.createElement("tr");
+  var splitCol3 = document.createElement("td");
+  var submitButton = document.createElement("button");
+  submitButton.innerHTML = "Submit";
+
+  submitButton.onclick = function(argument) {
+
+    //get which node to split and which columns for new nodes
+    var nodeToSplit = splitSelect.value;
+    var oldNode = document.getElementById(nodeToSplit);
+    var firstDataCol = splitSelect1.value;
+    var secondDataCol = splitSelect2.value;
+    console.log(firstDataCol, secondDataCol);
+
+    //create two new nodes with name from data column
+    var newNodeName1 = features[firstDataCol];
+    var newNode1 = document.createElement("div");
+    newNode1.className = "node";
+    newNode1.id = newNodeName1;
+    newNode1.innerHTML = newNodeName1;
+    newNode1.style.position = "absolute";
+    newNode1.style.top = oldNode.style.top;
+    var leftVal1 = parseInt(oldNode.style.left.slice(0,3)) - 100;
+    console.log(leftVal1);
+    newNode1.style.left = leftVal1+"px";
+
+    parents[newNodeName1] = parents[nodeToSplit];
+    nodes.push(newNodeName1);
+
+    document.body.appendChild(newNode1);
+
+    addNodeHelper(newNodeName1);
+
+    //create second node with name from dataColumn
+    var newNodeName2 = features[secondDataCol];
+    var newNode2 = document.createElement("div");
+    newNode2.className = "node";
+    newNode2.id = newNodeName2;
+    newNode2.innerHTML = newNodeName2;
+    newNode2.style.position = "absolute";
+    newNode2.style.top = oldNode.style.top;
+    var leftVal2 = parseInt(oldNode.style.left.slice(0,3)) + 100;
+    console.log(leftVal2);
+    newNode2.style.left = leftVal2+"px";
+
+    parents[newNodeName2] = parents[nodeToSplit];
+    nodes.push(newNodeName2);
+
+    document.body.appendChild(newNode2);
+
+    addNodeHelper(newNodeName2);
+
+    //delete node to split
+    deleteNodeHelper(nodeToSplit);
+
+    document.getElementById("split").removeChild(splitTable);
+  }
+
+  splitCol3.appendChild(submitButton);
+  splitRow3.appendChild(splitCol3);
+  splitTable.appendChild(splitRow3);
+
+  document.getElementById("split").appendChild(splitTable);
+
+}
+
+function createMergeNodeForm() {
+  //create table that will hold the split node information
+  var mergeTable = document.createElement("table");
+  mergeTable.style.position = "absolute";
+  mergeTable.style.top = "630px";
+  mergeTable.style.left = "800px";
+  mergeTable.style.color = "black";
+  mergeTable.style.background = "white";
+
+  //enter two nodes to merge
+  var row1 = document.createElement("tr");
+  var col11 = document.createElement("td");
+  col11.innerHTML = "Enter first node to merge:";
+  row1.appendChild(col11);
+
+  var col12 = document.createElement("td");
+  var mergeForm1 = document.createElement("form");
+  var mergeSelect1 = document.createElement("select");
+  for (var i=0; i<nodes.length; i++){
+    var mergeOption1 = document.createElement("option");
+    mergeOption1.innerHTML = nodes[i];
+    mergeSelect1.appendChild(mergeOption1);
+  }
+  mergeForm1.appendChild(mergeSelect1);
+  col12.appendChild(mergeForm1);
+  row1.appendChild(col12);
+
+  //enter second node to merge
+  var row2 = document.createElement("tr");
+  var col21 = document.createElement("td");
+  col21.innerHTML = "Enter second node to merge:";
+  row2.appendChild(col21);
+
+  var col22 = document.createElement("td");
+  var mergeForm2 = document.createElement("form");
+  var mergeSelect2 = document.createElement("select");
+  for (var i=0; i<nodes.length; i++){
+    var mergeOption2 = document.createElement("option");
+    mergeOption2.innerHTML = nodes[i];
+    mergeSelect2.appendChild(mergeOption2);
+  }
+  mergeForm2.appendChild(mergeSelect2);
+  col22.appendChild(mergeForm2);
+  row2.appendChild(col22);
+
+  //enter new column number that will be responsible for merge
+  var row3 = document.createElement("tr");
+  var col31 = document.createElement("td");
+  col31.innerHTML = "Choose column of data for merged node:"
+  row3.appendChild(col31);
+
+  var col32 = document.createElement("td");
+  var mergeForm3 = document.createElement("form");
+  var mergeSelect3 = document.createElement("select");
+  for (var i=0; i<features.length; i++){
+    var mergeOption3 = document.createElement("option");
+    mergeOption3.innerHTML = i;
+    mergeSelect3.appendChild(mergeOption3);
+  }
+  mergeForm3.appendChild(mergeSelect3);
+  col32.appendChild(mergeForm3);
+  row3.appendChild(col32);
+
+  var row4 = document.createElement("tr");
+  var col4 = document.createElement("td");
+  var mergeSubmit = document.createElement("button");
+  mergeSubmit.innerHTML = "Submit";
+  mergeSubmit.onclick = function (argument) {
+    document.getElementById("split").removeChild(mergeTable);
+  }
+  col4.appendChild(mergeSubmit);
+  row4.appendChild(col4);
+
+  mergeTable.appendChild(row1);
+  mergeTable.appendChild(row2);
+  mergeTable.appendChild(row3);
+  mergeTable.appendChild(row4);
+
+  document.getElementById("split").appendChild(mergeTable);
+
+}
+
 
 ////////////////////////////////////////////////////////////////////////////////
-/////////Section 4: Running training and reading test file//////////////////////
+/////////Section 5: Running training and reading test file//////////////////////
+////////////////////////////////////////////////////////////////////////////////
 
 var trainingComplete = false;
 function computeProbabilities() {
@@ -642,6 +872,26 @@ function computeProbabilities() {
       }
       return newPermList;
     }
+  }
+
+  function getPermutation(parentList, dataPoint) {
+    var key = ""
+    for (var i=0; i<parentList.length; i++){
+      var index = features.indexOf(parentList[i]);
+      var value = dataPoint[index];
+      console.log(parentList[i], index, value);
+      if (value == "0"){
+        key += "not"+parentList[i];
+      } else {
+        console.log("true", parentList[i]);
+        key += parentList[i];
+      }
+
+      if (i+1<parentList.length){
+        key += "&";
+      }
+    }
+    return key;
   }
 
   function helper(currentNode) {
@@ -684,37 +934,12 @@ function computeProbabilities() {
       for (var j=0; j<data.length; j++){
 
         //for each data point check if a particular permutation matches that data point
-        for (var i=0; i<permutations.length; i++){
-          parentNodes = permutations[i].split("&");
-          var valid = true;
-
-          //separate parent node names in permutations and check if they're true or false;
-          for (var k=0; k<parentNodes.length; k++){
-            //if one of the parent nodes contains a not
-            if (parentNodes[k].includes("not")){
-              nodeName = parentNodes[k].slice(3,parentNodes[k].length);
-              nodeIndex = features.indexOf(nodeName);
-
-              if (data[j][nodeIndex] != "0"){
-                valid = false;
-                break;
-              }
-            } else {
-              nodeIndex = features.indexOf(parentNodes[k]);
-              if (data[j][nodeIndex] != "1"){
-                valid = false;
-                break;
-              }
-            }
-          }
-
-          if (valid){
-            countDict[permutations[i]] += 1;
-            var finalNodeIndex = features.indexOf(currentNode);
-            if (data[j][finalNodeIndex] == "1"){
-              trueCountDict[permutations[i]] += 1;
-            }
-          }
+        var permutation = getPermutation(parents[currentNode], data[j]);
+        console.log(data[j], permutation);
+        countDict[permutation] += 1;
+        var finalNodeIndex = features.indexOf(currentNode);
+        if (data[j][finalNodeIndex] == "1"){
+          trueCountDict[permutation] += 1;
         }
 
       }
