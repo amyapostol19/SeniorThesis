@@ -886,13 +886,28 @@ function createMergeNodeForm() {
     newNode.style.position = "absolute";
     newNode.style.top = (parseInt(oldNode1.style.top.slice(0,3))+parseInt(oldNode2.style.top.slice(0,3)))/2 + "px";
     newNode.style.left = (parseInt(oldNode1.style.left.slice(0,3))+parseInt(oldNode2.style.left.slice(0,3)))/2 + "px";
-
-    parents[newNodeName] = parents[firstRemove]+parents[secondRemove];
     nodes.push(newNodeName);
 
     document.body.appendChild(newNode);
-
     addNodeHelper(newNodeName);
+
+    for (var i=0; i<parents[firstRemove].length; i++){
+      var parent1 = parents[firstRemove][i];
+      connectNodesHelper(parent1, newNodeName);
+    }
+    for (var j=0; j<parents[secondRemove].length; j++){
+      var parent2 = parents[secondRemove][j];
+      connectNodesHelper(parent2, newNodeName);
+    }
+    for (var k=0; k<children[firstRemove].length; k++){
+      var child1 = children[firstRemove][k];
+      connectNodesHelper(newNodeName, child1);
+    }
+    for (var l=0; l<children[secondRemove].length; l++){
+      var child2 = children[secondRemove][l];
+      connectNodesHelper(newNodeName, child2);
+    }
+ 
     deleteNodeHelper(firstRemove);
     deleteNodeHelper(secondRemove);
 
