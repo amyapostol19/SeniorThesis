@@ -3,9 +3,9 @@
 /////////////Section 0: Declaring instance variables//////////////////////////
 //////////////////////////////////////////////////////////////////////////////
 
-var nextNodeName = []
 var nodes = []
 var parents = {}
+var children = {}
 var features = []
 var data = []
 var colors = {}
@@ -76,7 +76,8 @@ function readDataFile() {
       }
 
       //populate data array
-      for (var i=1; i<info.length; i++){
+      data.length = 0;
+      for (var i=1; i<info.length-1; i++){
         data.push(info[i].slice(0,-1).split(','));
       }
       
@@ -146,7 +147,6 @@ function createNewNode(event) {
 
   //append new node to documeent body, add node ID to array of nodes
   document.body.appendChild(newNode);
-  nextNodeName.push(newNode.id);
   nodes.push(newNode.id);
 
   //create the form that will allow you to name a node
@@ -290,7 +290,6 @@ function addNodeName(nodeID) {
   var oldIndex = nodes.indexOf(nodeID);
   nodes.splice(oldIndex, 1);
   nodes.push(nodeName);
-  parents[nodeName] = [];
 
   var form = document.getElementById(nodeID+"Form");
   document.body.removeChild(form);
@@ -299,6 +298,13 @@ function addNodeName(nodeID) {
 }
 
 function addNodeHelper(nodeName) {
+  //add node to parents dictionary and children dictionary
+  parents[nodeName] = [];
+  children[nodeName] = [];
+
+  //compute probabilities for this node assuming no current parents or children
+  computeProbabilities(nodeName);
+
   //append new name to delete node form
   var delOption = document.createElement("option");
   delOption.setAttribute('value', nodeName);
@@ -391,7 +397,24 @@ function deleteNode(event) {
 }
 
 function deleteNodeHelper(nodeID) {
-  //remove from Nodex
+  //remove all connections
+  //disconnect node from all children
+  var childListCopy = children[nodeID].slice(0);
+  for (var i=0; i<childListCopy.length; i++){
+    var child = childListCopy[i];
+    disconnectNodesHelper(nodeID, child);
+  }
+  //disconnect node from all parents
+  var parentListCopy = parents[nodeID].slice(0);
+  for (var j=0; j<parentListCopy.length; j++){
+    var parent = parentListCopy[j];
+    disconnectNodesHelper(parent, nodeID);
+  }
+
+  delete parents[nodeID];
+  delete children[nodeID];
+
+  //remove from nodes list
   var nodeIndex = nodes.indexOf(nodeID);
   nodes.splice(nodeIndex, 1);
 
@@ -417,18 +440,8 @@ function deleteNodeHelper(nodeID) {
   var row = document.getElementById("propRow"+nodeID);
   document.getElementById("propTable").removeChild(row);
 
-  //remove connections
-  console.log(parents);
-  delete parents[nodeID];
-
-  for (var child in parents){
-    var parList = parents[child];
-    if (parList.includes(nodeID)){
-      var index = parList.indexOf(nodeID);
-      parList.splice(index, 1);
-      parents[child] = parList;
-    }
-  }
+  //remove from probabilities
+  delete probabilities[nodeID];
   
   //remove from delete options
   var delOption = document.getElementById("delOption"+nodeID);
@@ -546,23 +559,29 @@ function connectTwoNodes(event) {
   }
 
   var parent = document.getElementById("connectSelect1").value;
-  var secondNode = document.getElementById("connectSelect2").value;
+  var child = document.getElementById("connectSelect2").value;
 
-  if (parent == secondNode){
+  //check to make sure two ndoes are different
+  if (parent == child){
     alert("Please select two different nodes.");
     return;
   }
 
+  connectNodesHelper(parent, child);
+ 
+}
+
+function connectNodesHelper(parent, child) {
+
   //add parent to the parents list of child
-  if (secondNode in parents){
-    parents[secondNode].push(parent);
-  } else {
-    parents[secondNode] = [parent];
-  }
+  parents[child].push(parent);
+  
+  //add child to the childrens list of parent
+  children[parent].push(child);
 
   //connect nodes on front-end
   var node1 = document.getElementById(parent);
-  var node2 = document.getElementById(secondNode);
+  var node2 = document.getElementById(child);
 
   var x1 = node1.offsetLeft, y1 = node1.offsetTop;
   var x2 = node2.offsetLeft, y2 = node2.offsetTop;
@@ -570,11 +589,8 @@ function connectTwoNodes(event) {
   var width = Math.abs(x1-x2);
   var height = Math.abs(y1-y2);
 
-  //console.log(x1, y1);
-  //console.log(x2, y2);
-
   var svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-  svg.setAttribute("id", parent+secondNode+"line");
+  svg.setAttribute("id", parent+child+"line");
   svg.setAttribute("width", width);
   svg.setAttribute("height", height-50);
   svg.style.position = "absolute";
@@ -596,6 +612,8 @@ function connectTwoNodes(event) {
 
   svg.appendChild(line);
   document.body.appendChild(svg);
+
+  computeProbabilities(child);
 }
 
 function disconnectTwoNodes(event) {
@@ -607,7 +625,12 @@ function disconnectTwoNodes(event) {
   var parent = document.getElementById("connectSelect1").value;
   var secondNode = document.getElementById("connectSelect2").value;
 
-  var line = document.getElementById(parent+secondNode+"line");
+  disconnectNodesHelper(parent,secondNode);
+
+}
+
+function disconnectNodesHelper(parent, child) {
+  var line = document.getElementById(parent+child+"line");
   if (line == null){
     alert("This connection does not exist.");
     return;
@@ -615,10 +638,20 @@ function disconnectTwoNodes(event) {
 
   line.parentNode.removeChild(line);
 
-  var parentList = parents[secondNode];
+  //remove parent from parent list of child
+  var parentList = parents[child];
   var badIndex = parentList.indexOf(parent);
   parentList.splice(badIndex,1);
-  parents[secondNode] = parentList;
+  parents[child] = parentList;
+
+  //remove child from children list of parent
+  var childList = children[parent];
+  var badIndexChild = childList.indexOf(child);
+  childList.splice(badIndexChild, 1);
+  children[parent] = childList;
+
+  computeProbabilities(child);
+  
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -632,7 +665,7 @@ function createSplitNodeForm() {
   var splitTable = document.createElement("table");
   splitTable.style.position = "absolute";
   splitTable.style.top = "630px";
-  splitTable.style.left = "800px";
+  splitTable.style.left = "600px";
   splitTable.style.color = "black";
   splitTable.style.background = "white";
   //splitTable.style.border = "white";
@@ -709,7 +742,6 @@ function createSplitNodeForm() {
     var oldNode = document.getElementById(nodeToSplit);
     var firstDataCol = splitSelect1.value;
     var secondDataCol = splitSelect2.value;
-    console.log(firstDataCol, secondDataCol);
 
     //create two new nodes with name from data column
     var newNodeName1 = features[firstDataCol];
@@ -720,10 +752,7 @@ function createSplitNodeForm() {
     newNode1.style.position = "absolute";
     newNode1.style.top = oldNode.style.top;
     var leftVal1 = parseInt(oldNode.style.left.slice(0,3)) - 100;
-    console.log(leftVal1);
     newNode1.style.left = leftVal1+"px";
-
-    parents[newNodeName1] = parents[nodeToSplit];
     nodes.push(newNodeName1);
 
     document.body.appendChild(newNode1);
@@ -739,15 +768,27 @@ function createSplitNodeForm() {
     newNode2.style.position = "absolute";
     newNode2.style.top = oldNode.style.top;
     var leftVal2 = parseInt(oldNode.style.left.slice(0,3)) + 100;
-    console.log(leftVal2);
     newNode2.style.left = leftVal2+"px";
-
-    parents[newNodeName2] = parents[nodeToSplit];
     nodes.push(newNodeName2);
 
     document.body.appendChild(newNode2);
 
     addNodeHelper(newNodeName2);
+
+
+    //add children to each new node
+    for (var i=0; i<children[nodeToSplit].length; i++){
+      var child = children[nodeToSplit][i];
+      connectNodesHelper(newNodeName1, child);
+      connectNodesHelper(newNodeName2, child);
+    }
+
+    //add parents to each new node
+    for (var j=0; j<parents[nodeToSplit].length; j++){
+      var parent = parents[nodeToSplit][j];
+      connectNodesHelper(parent, newNodeName1);
+      connectNodesHelper(parent, newNodeName2);
+    }
 
     //delete node to split
     deleteNodeHelper(nodeToSplit);
@@ -768,7 +809,7 @@ function createMergeNodeForm() {
   var mergeTable = document.createElement("table");
   mergeTable.style.position = "absolute";
   mergeTable.style.top = "630px";
-  mergeTable.style.left = "800px";
+  mergeTable.style.left = "600px";
   mergeTable.style.color = "black";
   mergeTable.style.background = "white";
 
@@ -831,6 +872,30 @@ function createMergeNodeForm() {
   var mergeSubmit = document.createElement("button");
   mergeSubmit.innerHTML = "Submit";
   mergeSubmit.onclick = function (argument) {
+    var firstRemove = mergeSelect1.value;
+    var secondRemove = mergeSelect2.value;
+    var newNodeName = features[mergeSelect3.value];
+
+    var oldNode1 = document.getElementById(firstRemove);
+    var oldNode2 = document.getElementById(secondRemove);
+
+    var newNode = document.createElement("div");
+    newNode.className = "node";
+    newNode.id = newNodeName;
+    newNode.innerHTML = newNodeName;
+    newNode.style.position = "absolute";
+    newNode.style.top = (parseInt(oldNode1.style.top.slice(0,3))+parseInt(oldNode2.style.top.slice(0,3)))/2 + "px";
+    newNode.style.left = (parseInt(oldNode1.style.left.slice(0,3))+parseInt(oldNode2.style.left.slice(0,3)))/2 + "px";
+
+    parents[newNodeName] = parents[firstRemove]+parents[secondRemove];
+    nodes.push(newNodeName);
+
+    document.body.appendChild(newNode);
+
+    addNodeHelper(newNodeName);
+    deleteNodeHelper(firstRemove);
+    deleteNodeHelper(secondRemove);
+
     document.getElementById("split").removeChild(mergeTable);
   }
   col4.appendChild(mergeSubmit);
@@ -850,10 +915,9 @@ function createMergeNodeForm() {
 /////////Section 5: Running training and reading test file//////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 
-var trainingComplete = false;
-function computeProbabilities() {
+function computeProbabilities(childNode) {
   console.log("beginning training");
-  finalNode = "Plane Doesn't Land";
+  finalNode = childNode;
 
   function getParentPermutations(parentList){
     if (parentList.length == 1){
@@ -879,11 +943,9 @@ function computeProbabilities() {
     for (var i=0; i<parentList.length; i++){
       var index = features.indexOf(parentList[i]);
       var value = dataPoint[index];
-      console.log(parentList[i], index, value);
       if (value == "0"){
         key += "not"+parentList[i];
       } else {
-        console.log("true", parentList[i]);
         key += parentList[i];
       }
 
@@ -919,12 +981,10 @@ function computeProbabilities() {
       for (var i=0; i<parents[currentNode].length; i++){
         helper(parents[currentNode][i]);
       }
-      console.log(probabilities);
 
       countDict = {};
       trueCountDict = {}
       permutations = getParentPermutations(parents[currentNode]);
-      console.log(permutations);
       for (var i=0; i<permutations.length; i++){
         countDict[permutations[i]] = 0;
         trueCountDict[permutations[i]] = 0;
@@ -935,7 +995,6 @@ function computeProbabilities() {
 
         //for each data point check if a particular permutation matches that data point
         var permutation = getPermutation(parents[currentNode], data[j]);
-        console.log(data[j], permutation);
         countDict[permutation] += 1;
         var finalNodeIndex = features.indexOf(currentNode);
         if (data[j][finalNodeIndex] == "1"){
@@ -950,13 +1009,11 @@ function computeProbabilities() {
         prob_dict[prob] = value
       }
       probabilities[currentNode] = prob_dict;
-      console.log(probabilities);
     }
   }
 
+  console.log(probabilities);
   helper(finalNode);
-  document.getElementById("certified").innerHTML = "Finished Training";
-  trainingComplete = true;
 }
 
 function readTestFile() {
@@ -976,6 +1033,7 @@ function readTestFile() {
     if (evt.target.readyState == FileReader.DONE){
       var info = evt.target.result.split('\n');
 
+      testData.length = 0;
       for (var i=1; i<info.length-1; i++){
         testData.push(info[i].split(','));
       }
@@ -995,10 +1053,6 @@ function displayTestSpeed() {
 var pauseTesting = false;
 
 function runTests(event) {
-  if (!trainingComplete){
-    alert("Please Compute Probabilities (Train)");
-    return;
-  }
 
   clearResults();
 
@@ -1117,10 +1171,6 @@ function runTests(event) {
 }
 
 function runAllTests(event) {
-  if (!trainingComplete){
-    alert("Please compute probabilities (train)");
-    return;
-  }
 
   var speed = 10000 - document.getElementById("testSlider").value*100;
 
@@ -1150,10 +1200,6 @@ function pauseTestingFunc(event) {
 //used to know if we have finished assigning given true/false values to nodes
 var finishedAssignments = false;
 function getResults(event) {
-  if (!trainingComplete){
-    alert("Please compute probabilities (train)");
-    return;
-  }
 
   console.log("getting results");
 
