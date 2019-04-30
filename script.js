@@ -9,8 +9,8 @@ var children = {}
 var features = []
 var data = []
 var colors = {}
-var colorOptions = ["#FF0000", "#FFA500", "#FFFF00", "#00FF00", "#00FFFF", 
-  "#0000FF", "#FF00FF", "#FF1493"]
+var colorOptions = ["Red", "#OrangeRed", "Teal", "Blue", "Aqua",
+ "Fuchsia", "#FF1493", "MistyRose"]
 
 //testing
 var testData = []
@@ -490,6 +490,20 @@ function animateNodes(event) {
   function myloop() {
     setTimeout(function () {
 
+      //determine if all nodes are lit for this particular data point
+      var allLit = true;
+      for (var i=0; i<nodesToAnimate.length; i++){
+        var animatedNode = nodesToAnimate[i];
+        if (counter%2 == 1){
+          continue;
+        } else {
+          if (data[counter/2][features.indexOf(animatedNode)] != "1"){
+            allLit = false;
+          }
+          //console.log(animatedNode, data[counter/2][features.indexOf(animatedNode)], allLit);
+        }
+      }
+
       //determine which nodes to animate and animate them (change the text color)
       for (var j=0; j<nodesToAnimate.length; j++){
         var nodeToAnimate = nodesToAnimate[j];
@@ -504,7 +518,11 @@ function animateNodes(event) {
         //change color of node if data value is true (==1)
         else {
           if (data[counter/2][dataIndex] == "1"){
-            elem.style.color = colors[nodeToAnimate];
+            if (allLit){
+              elem.style.color = "lawnGreen";
+            } else {
+              elem.style.color = colors[nodeToAnimate];
+            }
           } else {
             elem.style.color = "white";
           }
@@ -1068,6 +1086,10 @@ function displayTestSpeed() {
 var pauseTesting = false;
 
 function runTests(event) {
+  if (testData.length == 0){
+    alert("Please upload test data");
+    return;
+  }
 
   clearResults();
 
@@ -1112,15 +1134,19 @@ function runTests(event) {
         }
         console.log("new set value", setValues[currentNode]);
 
-        var node = document.getElementById(currentNode);
-        node.innerHTML += "<br />";
-        node.innerHTML += "Probability True: "+probability+"%";
-        node.innerHTML += "<br />";
-        node.innerHTML += "<span style='color:red'>"+setValues[currentNode]+"</span>";
+        if (currentNode != finalVariable){
+          var node = document.getElementById(currentNode);
+          node.innerHTML += "<br />";
+          node.innerHTML += "Probability True: "+probability+"%";
+          node.innerHTML += "<br />";
+          node.innerHTML += "<span style='color:aqua'>"+setValues[currentNode]+"</span>";
+        }
       } else {
-        var node = document.getElementById(currentNode);
-        node.innerHTML += "<br />";
-        node.innerHTML += "<span style='color:red'>"+setValues[currentNode]+"</span>";
+        if (currentNode != finalVariable){
+          var node = document.getElementById(currentNode);
+          node.innerHTML += "<br />";
+          node.innerHTML += "<span style='color:aqua'>"+setValues[currentNode]+"</span>";
+        }
       }
     }
 
@@ -1146,15 +1172,18 @@ function runTests(event) {
       var finalrandomNum = Math.random();
       if (finalrandomNum <= finalprobability){
           setValues[currentNode] = true;
-        } else {
-          setValues[currentNode] = false;
-        }
+      } else {
+        setValues[currentNode] = false;
+      }
 
-      var node = document.getElementById(currentNode);
-      node.innerHTML += "<br />";
-      node.innerHTML += "Probability True: " + finalprobability*100 + "%";
-      node.innerHTML += "<br />";
-      node.innerHTML += "<span style='color:red'>Actual: "+setValues[currentNode]+"</span>";
+      //if current node is not final variable we can write it on front end
+      if (currentNode != finalVariable){
+        var node = document.getElementById(currentNode);
+        node.innerHTML += "<br />";
+        node.innerHTML += "Probability True: " + finalprobability*100 + "%";
+        node.innerHTML += "<br />";
+        node.innerHTML += "<span style='color:aqua'>Actual: "+setValues[currentNode]+"</span>";
+      }
     }
   }
 
@@ -1164,8 +1193,12 @@ function runTests(event) {
   var correct = dataPoint[finalVarIndex];
   if (setValues[finalVariable] == (correct == "1")){
     testCorrect += 1;
+    document.getElementById(finalVariable).innerHTML += "<br /><span style='color:lawnGreen'>Actual: "+setValues[finalVariable]+"</span>";
+    document.getElementById(finalVariable).innerHTML += "<br /><span style='color:lawnGreen'>Expected: "+(correct==1)+"</span>";
+  } else {
+    document.getElementById(finalVariable).innerHTML += "<br /><span style='color:red'>Actual: "+setValues[finalVariable]+"</span>";
+    document.getElementById(finalVariable).innerHTML += "<br /><span style='color:red'>Expected: "+(correct==1)+"</span>";
   }
-  document.getElementById(finalVariable).innerHTML += "<br /><span>Expected: "+(correct==1)+"</span>";
   //var corr = document.getElementById("CorrectVal");
   //corr.innerHTML="Correct Value"
 
@@ -1186,8 +1219,12 @@ function runTests(event) {
 }
 
 function runAllTests(event) {
+  if (testData.length == 0){
+    alert("Please upload test data");
+    return;
+  }
 
-  var speed = 10000 - document.getElementById("testSlider").value*100;
+  var speed = 2000 - document.getElementById("testSlider").value*20;
 
   pauseTesting = false;
   function totalloop() {
