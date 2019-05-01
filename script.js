@@ -122,8 +122,10 @@ function generateRandomColor() {
 //counter to temporarily assign IDs to unamed nodes
 var nextID = 0;
 
-//create a new node on the board
-function createNewNode(event) {
+//create a new node on the board doesnt give the node a name yet
+//top = position of new node relative to the top of the webpage
+//left = position of new node relative to left of the webpage
+function createNewNode(event, top, left) {
   //make sure data has been uploaded and possible features exist
   if (features.length == 0){
     alert("Please upload data first");
@@ -134,11 +136,12 @@ function createNewNode(event) {
   var newNode = document.createElement("div");
   newNode.className = "node";
   newNode.id = "node"+String(nextID);
-  newNode.style.position = "absolute";
-  newNode.style.top = "670px";
+  nextID += 1; //update nextID counter
 
-  //update nextID counter.
-  nextID += 1;
+  //specify position of new node
+  newNode.style.position = "absolute";
+  newNode.style.top = top+"px";
+  newNode.style.left = left+"px";
 
   //create delete button on node
   var deleteButton = document.createElement("button");
@@ -151,15 +154,6 @@ function createNewNode(event) {
     deleteNode(newNode.id);
   }
   newNode.appendChild(deleteButton);
-
-  //define name div and info div for new node
-  //create node name div and add it to node
-  var nameElem = document.createElement("div");
-  newNode.appendChild(nameElem);
-
-  //create nodeInfo div and add it to node
-  var nodeInfo = document.createElement("div");
-  newNode.appendChild(nodeInfo);
   
   //make new node draggable and have functions for what to do when dragging
   newNode.draggable = "true";
@@ -167,11 +161,8 @@ function createNewNode(event) {
     event.dataTransfer.setData("text", event.target.id);
   }
 
-
   //rename node when double clicking
   newNode.ondblclick = function(event) {
-    console.log("double", event);
-
     var inputForm = document.createElement("form");
     var inputText = document.createElement("input");
     inputText.type = "text";
@@ -181,20 +172,11 @@ function createNewNode(event) {
       if (!features.includes(nodeName)){
         alert("Invalid node name, try again");
       } else {
-        var oldID = newNode.id;
-        newNode.id = nodeName;
-        nameElem.id = nodeName+"Name";
-        nameElem.innerHTML = nodeName;
-        nodeInfo.id = nodeName+"Info";
-
-        //remove old node id from list of nodes and add new node id
-        var oldIndex = nodes.indexOf(oldID);
-        nodes.splice(oldIndex, 1);
-        nodes.push(nodeName);
-
+        console.log(newNode.id, nodeName);
+        //keep this not in the add node name function
         newNode.removeChild(inputForm);
 
-        addNodeHelper(nodeName);
+        addNodeName(newNode.id, nodeName);
       }
       return false;
     }
@@ -205,10 +187,6 @@ function createNewNode(event) {
   //append new node to documeent body, add node ID to array of nodes
   document.body.appendChild(newNode);
   nodes.push(newNode.id);
-
-  console.log(nodes);
-  //create the form that will allow you to name a node
-  //createNewForm(newNode.id);
 }
 
 /////////////////Helper functions for creating a new node///////////////////////
@@ -267,92 +245,81 @@ function dragAndDrop(node, prev_event) {
 (4) Add option to get results for that paricular node
 (5) Add option to delete that particular node
 */
-function addNodeName(nodeID) {
-  
-  var select = document.getElementById(nodeID+"Select");
-  var nodeName = select.value;
+function addNodeName(oldID, newID) {
+
+  //get the old node
+  var node = document.getElementById(oldID);
 
   //create node name div and add it to node
-  var node = document.getElementById(nodeID);
   var nameElem = document.createElement("div");
-  nameElem.innerHTML = nodeName;
-  nameElem.id = nodeName+"Name";
+  nameElem.innerHTML = newID;
+  nameElem.id = newID+"Name";
   node.appendChild(nameElem);
 
   //create nodeInfo div and add it to node
   var nodeInfo = document.createElement("div");
-  nodeInfo.id = nodeName+"Info";
+  nodeInfo.id = newID+"Info";
   node.appendChild(nodeInfo);
 
-  console.log(node);
-
   //specify new id of node
-  node.id = nodeName;
+  node.id = newID;
 
   //remove old node id from list of nodes and add new node id
-  var oldIndex = nodes.indexOf(nodeID);
+  var oldIndex = nodes.indexOf(oldID);
   nodes.splice(oldIndex, 1);
-  nodes.push(nodeName);
+  nodes.push(newID);
 
-  //remove the add name form (TODO will eventually get rid of adding node name by form)
-  var form = document.getElementById(nodeID+"Form");
-  document.body.removeChild(form);
-
-  addNodeHelper(nodeName);  
-}
-
-function addNodeHelper(nodeName) {
   //add node to parents dictionary and children dictionary
-  parents[nodeName] = [];
-  children[nodeName] = [];
+  parents[newID] = [];
+  children[newID] = [];
 
   //compute probabilities for this node assuming no current parents or children
-  computeProbabilities(nodeName);
+  computeProbabilities(newID);
 
-  //append new name to animation options
+  //append new name to animation options //TODO eventually get rid of when node has its own animation option...maybe
   var option = document.createElement("option");
-  option.setAttribute('value', nodeName);
-  option.setAttribute('id', "animOption"+nodeName);
-  option.innerHTML = nodeName;
+  option.setAttribute('value', newID);
+  option.setAttribute('id', "animOption"+newID);
+  option.innerHTML = newID;
   document.getElementById("animationOptions").appendChild(option);
 
-  //append new names to connect node options
+  //append new names to connect node options (maybe eventually get rid of)
   var option1 = document.createElement("option");
-  option1.setAttribute('value', nodeName);
-  option1.setAttribute('id', "connectOption1"+nodeName);
-  option1.innerHTML = nodeName;
+  option1.setAttribute('value', newID);
+  option1.setAttribute('id', "connectOption1"+newID);
+  option1.innerHTML = newID;
   document.getElementById("connectSelect1").appendChild(option1);
 
   var option2 = document.createElement("option");
-  option2.setAttribute('value', nodeName);
-  option2.setAttribute('id', "connectOption2"+nodeName);
-  option2.innerHTML = nodeName;
+  option2.setAttribute('value', newID);
+  option2.setAttribute('id', "connectOption2"+newID);
+  option2.innerHTML = newID;
   document.getElementById("connectSelect2").appendChild(option2);
 
 
   //append new names to get results form
   var resultsOption = document.createElement("option");
-  resultsOption.setAttribute("value", nodeName);
-  resultsOption.setAttribute("id", "resultOption"+nodeName);
-  resultsOption.innerHTML = nodeName;
+  resultsOption.setAttribute("value", newID);
+  resultsOption.setAttribute("id", "resultOption"+newID);
+  resultsOption.innerHTML = newID;
   document.getElementById("resultsForm").appendChild(resultsOption);
 
 
   //append new name to propogate results options
   var table = document.getElementById("propTable");
   var row = document.createElement("tr");
-  row.setAttribute("id", "propRow"+nodeName);
+  row.setAttribute("id", "propRow"+newID);
 
   //create first element in row
   var tag = document.createElement("td");
   tag.style.width = "160px";
-  tag.innerHTML = nodeName;
+  tag.innerHTML = newID;
 
   //create given form in row
   var formTD = document.createElement("td");
   var newForm = document.createElement("form");
   var select = document.createElement("select");
-  select.setAttribute("id", "propForm"+nodeName);
+  select.setAttribute("id", "propForm"+newID);
 
   //create options for the form
   //given true option
@@ -380,14 +347,12 @@ function addNodeHelper(nodeName) {
   row.appendChild(tag);
   row.appendChild(formTD);
   table.appendChild(row);
-
-  console.log("added name", nodes);
+  
 }
 
 function deleteNode(nodeID) {
   if (!features.includes(nodeID)){
     document.body.removeChild(document.getElementById(nodeID));
-    document.body.removeChild(document.getElementById(nodeID+"Form"));
     return;
   }
 
@@ -754,7 +719,7 @@ function createSplitNodeForm() {
   var submitButton = document.createElement("button");
   submitButton.innerHTML = "Submit";
 
-  submitButton.onclick = function(argument) {
+  submitButton.onclick = function(event) {
 
     //get which node to split and which columns for new nodes
     var nodeToSplit = splitSelect.value;
@@ -763,36 +728,12 @@ function createSplitNodeForm() {
     var secondDataCol = splitSelect2.value;
 
     //create two new nodes with name from data column
-    var newNodeName1 = features[firstDataCol];
-    var newNode1 = document.createElement("div");
-    newNode1.className = "node";
-    newNode1.id = newNodeName1;
-    newNode1.innerHTML = newNodeName1;
-    newNode1.style.position = "absolute";
-    newNode1.style.top = oldNode.style.top;
     var leftVal1 = parseInt(oldNode.style.left.slice(0,3)) - 100;
-    newNode1.style.left = leftVal1+"px";
-    nodes.push(newNodeName1);
-
-    document.body.appendChild(newNode1);
-
-    addNodeHelper(newNodeName1);
+    createNewNode(event, oldNode.style.top, leftVal1);
 
     //create second node with name from dataColumn
-    var newNodeName2 = features[secondDataCol];
-    var newNode2 = document.createElement("div");
-    newNode2.className = "node";
-    newNode2.id = newNodeName2;
-    newNode2.innerHTML = newNodeName2;
-    newNode2.style.position = "absolute";
-    newNode2.style.top = oldNode.style.top;
     var leftVal2 = parseInt(oldNode.style.left.slice(0,3)) + 100;
-    newNode2.style.left = leftVal2+"px";
-    nodes.push(newNodeName2);
-
-    document.body.appendChild(newNode2);
-
-    addNodeHelper(newNodeName2);
+    createNewNode(event, oldNode.style.top, leftVal2);
 
 
     //add children to each new node
