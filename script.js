@@ -137,13 +137,35 @@ function createNewNode(event) {
   newNode.style.position = "absolute";
   newNode.style.top = "670px";
 
+  //attempt at dragging
+
   //update nextID counter.
   nextID += 1;
 
+  //create delete button on node
+  var deleteButton = document.createElement("button");
+  deleteButton.innerHTML = "x"
+  deleteButton.style.zIndex = 1001;
+  deleteButton.style.position = "absolute";
+  deleteButton.style.left = "120px";
+  deleteButton.id = "deleteButton";
+  deleteButton.onclick = function clickDelete() {
+    deleteNode(newNode.id);
+  }
+  newNode.appendChild(deleteButton);
+  
+
+
   //allows node to be dragged an dropped to different areas of the webapp
-  newNode.onmousedown = function click() {
-    dragAndDrop(newNode);
+  newNode.onmousedown = function click(event) {
+    if (event.target.id != "deleteButton"){
+      dragAndDrop(newNode, event);
+    }
   };
+
+  newNode.ondblclick = function(event) {
+    console.log("double", event);
+  }
 
   //append new node to documeent body, add node ID to array of nodes
   document.body.appendChild(newNode);
@@ -156,74 +178,48 @@ function createNewNode(event) {
 /////////////////Helper functions for creating a new node///////////////////////
 
 //Found example on the internet. TODO site author
-function dragAndDrop(node_id) {
+function dragAndDrop(node, prev_event) {
 
   function move(event) { // (1) start the process
 
-    let shiftX = event.clientX - node_id.getBoundingClientRect().left;
-    let shiftY = event.clientY - node_id.getBoundingClientRect().top;
+    let shiftX = event.clientX - node.getBoundingClientRect().left;
+    let shiftY = event.clientY - node.getBoundingClientRect().top;
 
     // (2) prepare to moving: make absolute and on top by z-index
-    node_id.style.position = 'absolute';
-    node_id.style.zIndex = 1000;
+    node.style.position = 'absolute';
+    node.style.zIndex = 500;
     // move it out of any current parents directly into body
     // to make it positioned relative to the body
-    document.body.append(node_id);
+    document.body.append(node);
     // ...and put that absolutely positioned ball under the cursor
 
     moveAt(event.pageX, event.pageY);
 
     // centers the node at (pageX, pageY) coordinates
     function moveAt(pageX, pageY) {
-      node_id.style.left = pageX - shiftX + 'px';
-      node_id.style.top = pageY - shiftY + 'px';
+      node.style.left = pageX - shiftX + 'px';
+      node.style.top = pageY - shiftY + 'px';
     }
 
     function onMouseMove(event) {
       moveAt(event.pageX, event.pageY);
-
-      node_id.hidden = true;
-      let elemBelow = document.elementFromPoint(event.clientX, event.clientY);
-      node_id.hidden = false;
-
-      if (!elemBelow) return;
-
-      let droppableBelow = elemBelow.closest('.droppable');
-      if (currentDroppable != droppableBelow){
-        if (currentDroppable) {
-          leaveDroppable(currentDroppable);
-        }
-        currentDroppable = droppableBelow;
-        if (currentDroppable) {
-          enterDroppable(currentDroppable);
-        }
-      }
     }
 
     // (3) move the node on mousemove
     document.addEventListener('mousemove', onMouseMove);
 
     // (4) drop the node, remove unneeded handlers
-    node_id.onmouseup = function() {
+    node.onmouseup = function() {
       document.removeEventListener('mousemove', onMouseMove);
-      node_id.onmouseup = null;
+      node.onmouseup = null;
     };
 
   };
 
-  function enterDroppable(elem){
-      //elem.style.background = 'pink';
-  }
+  move(prev_event);
 
-  function leaveDroppable(elem){
-      //elem.style.background = '';
-  }
-
-  let currentDroppable = null;
-
-  move(event);
-
-  node_id.ondragstart = function() {
+  node.ondragstart = function() {
+    console.log("drag", prev_event);
     return false;
   }
 }
@@ -284,7 +280,8 @@ function addNodeName(nodeID) {
   var nodeName = select.value;
 
   var node = document.getElementById(nodeID);
-  node.innerHTML = nodeName;
+  var text = document.createTextNode(nodeName);
+  node.appendChild(text);
   node.id = nodeName;
 
   var oldIndex = nodes.indexOf(nodeID);
@@ -304,13 +301,6 @@ function addNodeHelper(nodeName) {
 
   //compute probabilities for this node assuming no current parents or children
   computeProbabilities(nodeName);
-
-  //append new name to delete node form
-  var delOption = document.createElement("option");
-  delOption.setAttribute('value', nodeName);
-  delOption.setAttribute("id", "delOption"+nodeName);
-  delOption.innerHTML = nodeName;
-  document.getElementById("deleteValue").appendChild(delOption);
 
   //append new name to animation options
   var option = document.createElement("option");
@@ -385,18 +375,13 @@ function addNodeHelper(nodeName) {
   table.appendChild(row);
 }
 
-function deleteNode(event) {
-  //get node ID
-  var nodeID = document.getElementById("deleteValue").value;
-
-  if (!nodes.includes(nodeID)){
-    alert("Please select a node to delete");
+function deleteNode(nodeID) {
+  if (!features.includes(nodeID)){
+    document.body.removeChild(document.getElementById(nodeID));
+    document.body.removeChild(document.getElementById(nodeID+"Form"));
     return;
   }
-  deleteNodeHelper(nodeID); 
-}
 
-function deleteNodeHelper(nodeID) {
   //remove all connections
   //disconnect node from all children
   var childListCopy = children[nodeID].slice(0);
@@ -442,10 +427,6 @@ function deleteNodeHelper(nodeID) {
 
   //remove from probabilities
   delete probabilities[nodeID];
-  
-  //remove from delete options
-  var delOption = document.getElementById("delOption"+nodeID);
-  document.getElementById("deleteValue").removeChild(delOption);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -809,7 +790,7 @@ function createSplitNodeForm() {
     }
 
     //delete node to split
-    deleteNodeHelper(nodeToSplit);
+    deleteNode(nodeToSplit);
 
     document.getElementById("split").removeChild(splitTable);
   }
@@ -926,8 +907,8 @@ function createMergeNodeForm() {
       connectNodesHelper(newNodeName, child2);
     }
  
-    deleteNodeHelper(firstRemove);
-    deleteNodeHelper(secondRemove);
+    deleteNode(firstRemove);
+    deleteNode(secondRemove);
 
     document.getElementById("split").removeChild(mergeTable);
   }
@@ -1193,11 +1174,11 @@ function runTests(event) {
   var correct = dataPoint[finalVarIndex];
   if (setValues[finalVariable] == (correct == "1")){
     testCorrect += 1;
-    document.getElementById(finalVariable).innerHTML += "<br /><span style='color:lawnGreen'>Actual: "+setValues[finalVariable]+"</span>";
-    document.getElementById(finalVariable).innerHTML += "<br /><span style='color:lawnGreen'>Expected: "+(correct==1)+"</span>";
+    document.getElementById(finalVariable).innerHTML += "<br /><span style='color:lawnGreen'>Prediction: "+setValues[finalVariable]+"</span>";
+    document.getElementById(finalVariable).innerHTML += "<br /><span style='color:lawnGreen'>Actual: "+(correct==1)+"</span>";
   } else {
-    document.getElementById(finalVariable).innerHTML += "<br /><span style='color:red'>Actual: "+setValues[finalVariable]+"</span>";
-    document.getElementById(finalVariable).innerHTML += "<br /><span style='color:red'>Expected: "+(correct==1)+"</span>";
+    document.getElementById(finalVariable).innerHTML += "<br /><span style='color:red'>Prediction: "+setValues[finalVariable]+"</span>";
+    document.getElementById(finalVariable).innerHTML += "<br /><span style='color:red'>Actual: "+(correct==1)+"</span>";
   }
   //var corr = document.getElementById("CorrectVal");
   //corr.innerHTML="Correct Value"
