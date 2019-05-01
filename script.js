@@ -137,8 +137,6 @@ function createNewNode(event) {
   newNode.style.position = "absolute";
   newNode.style.top = "670px";
 
-  //attempt at dragging
-
   //update nextID counter.
   nextID += 1;
 
@@ -153,26 +151,64 @@ function createNewNode(event) {
     deleteNode(newNode.id);
   }
   newNode.appendChild(deleteButton);
+
+  //define name div and info div for new node
+  //create node name div and add it to node
+  var nameElem = document.createElement("div");
+  newNode.appendChild(nameElem);
+
+  //create nodeInfo div and add it to node
+  var nodeInfo = document.createElement("div");
+  newNode.appendChild(nodeInfo);
   
+  //make new node draggable and have functions for what to do when dragging
+  newNode.draggable = "true";
+  newNode.ondragstart = function drag(event) {
+    event.dataTransfer.setData("text", event.target.id);
+  }
 
 
-  //allows node to be dragged an dropped to different areas of the webapp
-  newNode.onmousedown = function click(event) {
-    if (event.target.id != "deleteButton"){
-      dragAndDrop(newNode, event);
-    }
-  };
-
+  //rename node when double clicking
   newNode.ondblclick = function(event) {
     console.log("double", event);
+
+    var inputForm = document.createElement("form");
+    var inputText = document.createElement("input");
+    inputText.type = "text";
+    inputForm.appendChild(inputText);
+    inputForm.onsubmit = function(argument) {
+      var nodeName = inputText.value;
+      if (!features.includes(nodeName)){
+        alert("Invalid node name, try again");
+      } else {
+        var oldID = newNode.id;
+        newNode.id = nodeName;
+        nameElem.id = nodeName+"Name";
+        nameElem.innerHTML = nodeName;
+        nodeInfo.id = nodeName+"Info";
+
+        //remove old node id from list of nodes and add new node id
+        var oldIndex = nodes.indexOf(oldID);
+        nodes.splice(oldIndex, 1);
+        nodes.push(nodeName);
+
+        newNode.removeChild(inputForm);
+
+        addNodeHelper(nodeName);
+      }
+      return false;
+    }
+
+    newNode.appendChild(inputForm);
   }
 
   //append new node to documeent body, add node ID to array of nodes
   document.body.appendChild(newNode);
   nodes.push(newNode.id);
 
+  console.log(nodes);
   //create the form that will allow you to name a node
-  createNewForm(newNode.id);
+  //createNewForm(newNode.id);
 }
 
 /////////////////Helper functions for creating a new node///////////////////////
@@ -224,49 +260,6 @@ function dragAndDrop(node, prev_event) {
   }
 }
 
-/**create form that will be used to name the node
- **nodeID: Id of the node that we will be renaming
-*/
-function createNewForm(nodeID) {
-  //create form and add style
-  var form = document.createElement("form");
-  form.setAttribute('id',nodeID+"Form");
-  form.style.position = "absolute";
-  form.style.top = "730px";
-
-  //create inputs, form is given an ID with the existing node's name, that way the form is attached to the node
-  var select = document.createElement("select");
-  select.setAttribute('name',nodeID+"Select");
-  select.setAttribute('id',nodeID+"Select");
-
-  //create options to name the node (which are all of the existing features that don't have a node already assigned)
-  for (var i=0; i<features.length; i++){
-    if (!nodes.includes(features[i])){
-      var option = document.createElement("option");
-      option.setAttribute('value',features[i]);
-      option.innerHTML=features[i];
-
-      select.appendChild(option);
-    }
-  }
-
-  //create submit button
-  var input = document.createElement("input");
-  input.setAttribute('type','button');
-  input.setAttribute('value','Submit');
-  input.onclick = function() {
-    //when the submit button is clicked, add that particular value (node name) to the node
-    addNodeName(nodeID);
-  }
-
-  //append options and submit button to form
-  form.appendChild(select);
-  form.appendChild(input);
-
-  //append form to the body of the document
-  document.body.appendChild(form);
-}
-
 /**
 (1) Add name to the node
 (2) Add option to animate that particular node
@@ -279,15 +272,29 @@ function addNodeName(nodeID) {
   var select = document.getElementById(nodeID+"Select");
   var nodeName = select.value;
 
+  //create node name div and add it to node
   var node = document.getElementById(nodeID);
-  var text = document.createTextNode(nodeName);
-  node.appendChild(text);
+  var nameElem = document.createElement("div");
+  nameElem.innerHTML = nodeName;
+  nameElem.id = nodeName+"Name";
+  node.appendChild(nameElem);
+
+  //create nodeInfo div and add it to node
+  var nodeInfo = document.createElement("div");
+  nodeInfo.id = nodeName+"Info";
+  node.appendChild(nodeInfo);
+
+  console.log(node);
+
+  //specify new id of node
   node.id = nodeName;
 
+  //remove old node id from list of nodes and add new node id
   var oldIndex = nodes.indexOf(nodeID);
   nodes.splice(oldIndex, 1);
   nodes.push(nodeName);
 
+  //remove the add name form (TODO will eventually get rid of adding node name by form)
   var form = document.getElementById(nodeID+"Form");
   document.body.removeChild(form);
 
@@ -373,6 +380,8 @@ function addNodeHelper(nodeName) {
   row.appendChild(tag);
   row.appendChild(formTD);
   table.appendChild(row);
+
+  console.log("added name", nodes);
 }
 
 function deleteNode(nodeID) {
@@ -427,6 +436,17 @@ function deleteNode(nodeID) {
 
   //remove from probabilities
   delete probabilities[nodeID];
+}
+
+function drop(event) {
+  event.preventDefault();
+  var nodeID = event.dataTransfer.getData("text");
+  var node = document.getElementById(nodeID);
+
+  //TODO fix shifting
+  document.body.appendChild(node);
+  node.style.left = event.clientX - 65 + 'px';
+  node.style.top = event.clientY - 25 + 'px';
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -488,7 +508,7 @@ function animateNodes(event) {
       //determine which nodes to animate and animate them (change the text color)
       for (var j=0; j<nodesToAnimate.length; j++){
         var nodeToAnimate = nodesToAnimate[j];
-        var elem = document.getElementById(nodeToAnimate)
+        var elem = document.getElementById(nodeToAnimate+"Name")
         var dataIndex = features.indexOf(nodeToAnimate);
 
         //only change the color of the node every other loop so that we can get the blinking effect
@@ -1116,17 +1136,23 @@ function runTests(event) {
         console.log("new set value", setValues[currentNode]);
 
         if (currentNode != finalVariable){
-          var node = document.getElementById(currentNode);
+          var nodeInfo = document.getElementById(currentNode+"Info");
+          nodeInfo.innerHTML = "Probability True: "+probability+"%<br /><span style'color:aqua'>"+setValues[currentNode]+"</span>";
+          /*
           node.innerHTML += "<br />";
           node.innerHTML += "Probability True: "+probability+"%";
           node.innerHTML += "<br />";
           node.innerHTML += "<span style='color:aqua'>"+setValues[currentNode]+"</span>";
+          */
         }
       } else {
         if (currentNode != finalVariable){
-          var node = document.getElementById(currentNode);
+          var nodeInfo = document.getElementById(currentNode+"Info");
+          nodeInfo.innerHTML = "<span style='color:aqua'>"+setValues[currentNode]+"</span>";
+          /*
           node.innerHTML += "<br />";
           node.innerHTML += "<span style='color:aqua'>"+setValues[currentNode]+"</span>";
+          */
         }
       }
     }
@@ -1159,11 +1185,14 @@ function runTests(event) {
 
       //if current node is not final variable we can write it on front end
       if (currentNode != finalVariable){
-        var node = document.getElementById(currentNode);
+        var nodeInfo = document.getElementById(currentNode+"Info");
+        nodeInfo.innerHTML = "Probability True: " + finalprobability*100 + "%<br /><span style='color:aqua'>Actual: "+setValues[currentNode]+"</span>";
+        /*
         node.innerHTML += "<br />";
         node.innerHTML += "Probability True: " + finalprobability*100 + "%";
         node.innerHTML += "<br />";
         node.innerHTML += "<span style='color:aqua'>Actual: "+setValues[currentNode]+"</span>";
+        */
       }
     }
   }
@@ -1174,11 +1203,11 @@ function runTests(event) {
   var correct = dataPoint[finalVarIndex];
   if (setValues[finalVariable] == (correct == "1")){
     testCorrect += 1;
-    document.getElementById(finalVariable).innerHTML += "<br /><span style='color:lawnGreen'>Prediction: "+setValues[finalVariable]+"</span>";
-    document.getElementById(finalVariable).innerHTML += "<br /><span style='color:lawnGreen'>Actual: "+(correct==1)+"</span>";
+    document.getElementById(finalVariable+"Info").innerHTML += "<span style='color:lawnGreen'>Prediction: "+setValues[finalVariable]+"</span>";
+    document.getElementById(finalVariable+"Info").innerHTML += "<br /><span style='color:lawnGreen'>Actual: "+(correct==1)+"</span>";
   } else {
-    document.getElementById(finalVariable).innerHTML += "<br /><span style='color:red'>Prediction: "+setValues[finalVariable]+"</span>";
-    document.getElementById(finalVariable).innerHTML += "<br /><span style='color:red'>Actual: "+(correct==1)+"</span>";
+    document.getElementById(finalVariable+"Info").innerHTML += "<span style='color:red'>Prediction: "+setValues[finalVariable]+"</span>";
+    document.getElementById(finalVariable+"Info").innerHTML += "<br /><span style='color:red'>Actual: "+(correct==1)+"</span>";
   }
   //var corr = document.getElementById("CorrectVal");
   //corr.innerHTML="Correct Value"
@@ -1351,7 +1380,7 @@ function clearResults() {
   setValues = {};
 
   for (var i=0; i<nodes.length; i++){
-    var elem = document.getElementById(nodes[i]);
-    elem.innerHTML = nodes[i];
+    document.getElementById(nodes[i]+"Name").style.color = "white";
+    document.getElementById(nodes[i]+"Info").innerHTML = "";
   }
 }

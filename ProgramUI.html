@@ -46,7 +46,7 @@
 
 </head>
 
-<body>
+<body ondragover="event.preventDefault()" ondrop="drop(event)">
 
   <!--<img src="https://en.js.cx/clipart/soccer-gate.svg" id="gate" class="droppable">-->
 
@@ -55,9 +55,7 @@
   <table>
   	<tr>
   		<!--Create the zone where users can build their bayes net graph -->
-  		<td><div id="dropzone" class="droppable">
-  			<div id="completionRate"></div> <!--Used to see how far complete the animation is-->
-  		</div></td>
+  		<td><div id="dropzone"></div></td>
 
   		<!--Create animation form -->
   		<td class="animation" style="left: 820px;">
