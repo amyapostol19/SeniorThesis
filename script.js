@@ -4,6 +4,8 @@
 //////////////////////////////////////////////////////////////////////////////
 
 var nodes = []
+var waitingNode = null;
+
 var parents = {}
 var children = {}
 var features = []
@@ -11,6 +13,10 @@ var data = []
 var colors = {}
 var colorOptions = ["Red", "#OrangeRed", "Teal", "Blue", "Aqua",
  "Fuchsia", "#FF1493", "MistyRose"]
+
+//for making connections
+var connectMode = false;
+var drawMode = false;
 
 //testing
 var testData = []
@@ -20,6 +26,8 @@ var testCorrect = 0;
 //for propogating results
 var setValues = {}
 var probabilities = {}
+
+
 
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -83,19 +91,14 @@ function readDataFile() {
       
       document.getElementById('byte_range').textContent = "Data Successfully Loaded";
 
-      //create animate form (will populate with options later)
-      var form = document.getElementById("animateForm");
-      var select = document.createElement("select");
-      select.setAttribute('name','animationOptions');
-      select.setAttribute('id','animationOptions');
-      select.setAttribute('multiple', true);
-      form.appendChild(select);
-
       //make visible all elements that are a part of the animation class
       var animations = document.getElementsByClassName("animation");
       for (var i=0; i<animations.length; i++){
         animations[i].style.display = "block";
       }
+
+      //create initial node that will be dragged
+      createNewNode(event, "120px", "725px", null);
     }
   };
 
@@ -122,6 +125,42 @@ function generateRandomColor() {
 //counter to temporarily assign IDs to unamed nodes
 var nextID = 0;
 
+//give node name, info, children, parents, highlighted and delete button attributes
+//add node to list of existing nodes
+function addNodeAttributes(newNode) {
+  var nameElem = document.createElement("div");
+  nameElem.innerHTML = newNode.id;
+  nameElem.id = newNode.id+"Name";
+  newNode.appendChild(nameElem);
+
+  //create nodeInfo div and add it to node
+  var nodeInfo = document.createElement("div");
+  nodeInfo.id = newNode.id+"Info";
+  newNode.appendChild(nodeInfo);
+
+  //add node to parents dictionary and childrens dictionary
+  children[newNode.id] = [];
+  parents[newNode.id] = [];
+
+  //make node able to be highlighed
+  newNode.setAttribute("data-highlight", "false");
+
+  //create delete button on node
+  var deleteButton = document.createElement("button");
+  deleteButton.innerHTML = "x"
+  deleteButton.style.zIndex = 1001;
+  deleteButton.style.position = "absolute";
+  deleteButton.style.left = "120px";
+  deleteButton.style.top = "0px";
+  deleteButton.id = "deleteButton";
+  deleteButton.onclick = function clickDelete() {
+    deleteNode(newNode.id);
+  }
+  newNode.appendChild(deleteButton);
+
+  nodes.push(newNode.id);
+}
+
 //create a new node on the board doesnt give the node a name yet
 //top = position of new node relative to the top of the webpage
 //left = position of new node relative to left of the webpage
@@ -143,20 +182,13 @@ function createNewNode(event, top, left, name) {
   newNode.style.top = top;
   newNode.style.left = left;
 
-  //create delete button on node
-  var deleteButton = document.createElement("button");
-  deleteButton.innerHTML = "x"
-  deleteButton.style.zIndex = 1001;
-  deleteButton.style.position = "absolute";
-  deleteButton.style.left = "120px";
-  deleteButton.id = "deleteButton";
-  deleteButton.onclick = function clickDelete() {
-    deleteNode(newNode.id);
+  if (name != null){ //we're creating a new node for the board and assigning it a name
+    //create delete button on node
+    addNodeAttributes(newNode);
+    addNodeName(newNode.id, name);
+  } else {
+    waitingNode = newNode.id;
   }
-  newNode.appendChild(deleteButton);
-
-  //make node able to be highlighed
-  newNode.setAttribute("data-highlight", "false");
 
   //make new node draggable and have functions for what to do when dragging
   newNode.draggable = "true";
@@ -164,9 +196,24 @@ function createNewNode(event, top, left, name) {
     event.dataTransfer.setData("text", event.target.id);
   }
 
+  /*when drag ends, either
+      - user has added a new node to the board:
+          - give node name, info, children, parents, highlighted and delete button attributes 
+          - create a new node in the dashboard to eventually be used
+      - user moved a node alread on the board: do nothing
+  */
+  newNode.ondragend = function(event) {
+    if (waitingNode == newNode.id){ //we just dragged and created a real node
+      addNodeAttributes(newNode);
+      createNewNode(event, top, left, null); //create a waiting node
+    }
+    console.log("end drag", waitingNode, nodes);
+  }
+
   //rename node when double clicking
   newNode.ondblclick = function(event) {
     if (newNode.getAttribute("data-highlight") == "false"){
+      //create input form for user to write in node name
       var inputForm = document.createElement("form");
       var inputText = document.createElement("input");
       inputText.type = "text";
@@ -204,13 +251,9 @@ function createNewNode(event, top, left, name) {
     }
   }
 
-  //append new node to documeent body, add node ID to array of nodes
+  //append new node to document body
   document.body.appendChild(newNode);
-  nodes.push(newNode.id);
-
-  if (name != null){
-    addNodeName(newNode.id, name);
-  }
+  
   return newNode.id;
 }
 
@@ -269,44 +312,43 @@ function dragAndDrop(node, prev_event) {
 (3) Add option to connect that particular node
 (4) Add option to get results for that paricular node
 (5) Add option to delete that particular node
+
+We already know features should include new node name
 */
 function addNodeName(oldID, newID) {
-
   //get the old node
   var node = document.getElementById(oldID);
 
-  //create node name div and add it to node
-  var nameElem = document.createElement("div");
-  nameElem.innerHTML = newID;
-  nameElem.id = newID+"Name";
-  node.appendChild(nameElem);
-
-  //create nodeInfo div and add it to node
-  var nodeInfo = document.createElement("div");
-  nodeInfo.id = newID+"Info";
-  node.appendChild(nodeInfo);
+  //change the name and redefine the name div ID
+  var nameDiv = document.getElementById(oldID+"Name");
+  nameDiv.id = newID+"Name";
+  nameDiv.innerHTML = newID;
 
   //specify new id of node
   node.id = newID;
+
+  //change info id
+  document.getElementById(oldID+"Info").id = newID+"Info";
+
+  //change name of node in children and parents
+  var oldChildren = children[oldID];
+  delete children[oldID];
+  children[newID] = oldChildren;
+
+  var oldParents = parents[oldID];
+  delete parents[oldID];
+  parents[newID] = oldParents;
 
   //remove old node id from list of nodes and add new node id
   var oldIndex = nodes.indexOf(oldID);
   nodes.splice(oldIndex, 1);
   nodes.push(newID);
 
-  //add node to parents dictionary and children dictionary
-  parents[newID] = [];
-  children[newID] = [];
-
   //compute probabilities for this node assuming no current parents or children
+  if (oldID in probabilities){
+    delete probabilities[oldID];
+  }
   computeProbabilities(newID);
-
-  //append new name to animation options //TODO eventually get rid of when node has its own animation option...maybe
-  var option = document.createElement("option");
-  option.setAttribute('value', newID);
-  option.setAttribute('id', "animOption"+newID);
-  option.innerHTML = newID;
-  document.getElementById("animationOptions").appendChild(option);
 
   //append new names to connect node options (maybe eventually get rid of)
   var option1 = document.createElement("option");
@@ -322,17 +364,29 @@ function addNodeName(oldID, newID) {
   document.getElementById("connectSelect2").appendChild(option2);
 
 
-  //append new names to get results form
-  var resultsOption = document.createElement("option");
+  //replace names on get results form if oldID was previously in features
+  //or append new name to get results form
+  var resultsOption;
+  if (features.includes(oldID)){
+    resultsOption = document.getElementById("resultOption"+oldID);
+    document.getElementById("resultsForm").removeChild(resultsOption);
+  } else {
+    resultsOption = document.createElement("option");
+  }
   resultsOption.setAttribute("value", newID);
   resultsOption.setAttribute("id", "resultOption"+newID);
   resultsOption.innerHTML = newID;
   document.getElementById("resultsForm").appendChild(resultsOption);
 
 
-  //append new name to propogate results options
+  //append new name to propogate results options or replace old name with new name
   var table = document.getElementById("propTable");
-  var row = document.createElement("tr");
+  var row;
+  if (features.includes(oldID)){
+    row = document.getElementById("propRow"+oldID);
+    table.removeChild(row);
+  }
+  row = document.createElement("tr");
   row.setAttribute("id", "propRow"+newID);
 
   //create first element in row
@@ -377,6 +431,10 @@ function addNodeName(oldID, newID) {
 
 function deleteNode(nodeID) {
   if (!features.includes(nodeID)){
+    //remove from nodes list
+    var nodeIndex = nodes.indexOf(nodeID);
+    nodes.splice(nodeIndex, 1);
+
     document.body.removeChild(document.getElementById(nodeID));
     return;
   }
@@ -405,10 +463,6 @@ function deleteNode(nodeID) {
   //remove from body
   var nodeElem = document.getElementById(nodeID);
   document.body.removeChild(nodeElem);
-
-  //remove from animation list
-  var animOption = document.getElementById("animOption"+nodeID);
-  document.getElementById("animationOptions").removeChild(animOption);
 
   //remove from connect options
   var connectOption1 = document.getElementById("connectOption1"+nodeID);
@@ -449,8 +503,7 @@ function drop(event) {
 //for stopping the animation
 var stopAnimating = false;
 
-//function which causes nodes to blink on and off
-function animateNodes(event) {
+function animateNodes() {
   //checks to make sure data has been uploaded and nodes exist
   if (data.length == 0){
     alert("Please upload data");
@@ -461,17 +514,25 @@ function animateNodes(event) {
   }
 
   //Determine which nodes to animate (which were selected)
-  var animationSelect = document.getElementById("animationOptions");
   var nodesToAnimate = [];
-  var options = animationSelect.options;
-  for (var i=0; i<options.length; i++){
-    if (animationSelect.options[i].selected){
-      nodesToAnimate.push(animationSelect.options[i].value);
+  for (var i=0; i<nodes.length; i++){
+    var node = document.getElementById(nodes[i]);
+    if (node.getAttribute("data-highlight") == "true"){
+      if (!features.includes(nodes[i])){
+        alert("Please only select nodes with proper feature names");
+        return;
+      } else {
+        nodesToAnimate.push(nodes[i]);
+      }
     }
+  }
+  if (nodesToAnimate.length == 0){
+    alert("Please select or create a node to animate");
+    return;
   }
 
   //get speed at which to animate nodes
-  var slider = document.getElementById("slider");
+  var slider = document.getElementById("animateSlider");
   var speed = 1000 - (slider.value*10);
   
   //have counter to keep track of data point we're displaying on node animation (RSVP)
@@ -525,8 +586,8 @@ function animateNodes(event) {
       //used to keep track of how far along we are in the animation process
       if (counter%2 == 0){
         //document.getElementById('completionRate').innerHTML = "Animation is " + counter/2 + " % finished.";
-        document.getElementById('animProgressBar').style.width = counter+"px"; 
-        document.getElementById('animProgressBar').innerHTML = (counter/200)*100+"%";
+        document.getElementById('animProgressBar').style.width = (130*counter)/(2*data.length)+"px"; 
+        document.getElementById('animProgressBar').innerHTML = Math.round((100*counter)/(2*data.length))+"%";
       }
 
       //check to see if we should stop the animation process
@@ -551,14 +612,28 @@ function animateNodes(event) {
 
 //Once the user has selected a speed at which to animate nodes, display this speed
 function displayAnimationSpeed() {
-  var speed = document.getElementById("slider").value;
-  document.getElementById("speedDisplay").innerHTML = speed;
+  var speed = document.getElementById("animateSlider").value;
+  document.getElementById("animSpeedDisplay").innerHTML = "Animate Speed: "+ speed;
 }
 
 //Stop the animation process from happening by changing the stopAnimating boolean
 function stopAnimation() {
   console.log("No animating");
   stopAnimating = true;
+}
+
+function switchConnectMode() {
+  if (connectMode){
+    connectMode = false;
+    document.getElementById("ConnectModeButton").style.background = "white";
+  } else {
+    if (nodes.length < 2){
+      alert("Must have at least two nodes to enter connect mode");
+      return;
+    }
+    connectMode = true;
+    document.getElementById("ConnectModeButton").style.background = "grey";
+  }
 }
 
 function connectTwoNodes(event) {
