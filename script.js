@@ -125,7 +125,7 @@ var nextID = 0;
 //create a new node on the board doesnt give the node a name yet
 //top = position of new node relative to the top of the webpage
 //left = position of new node relative to left of the webpage
-function createNewNode(event, top, left) {
+function createNewNode(event, top, left, name) {
   //make sure data has been uploaded and possible features exist
   if (features.length == 0){
     alert("Please upload data first");
@@ -140,8 +140,8 @@ function createNewNode(event, top, left) {
 
   //specify position of new node
   newNode.style.position = "absolute";
-  newNode.style.top = top+"px";
-  newNode.style.left = left+"px";
+  newNode.style.top = top;
+  newNode.style.left = left;
 
   //create delete button on node
   var deleteButton = document.createElement("button");
@@ -154,7 +154,10 @@ function createNewNode(event, top, left) {
     deleteNode(newNode.id);
   }
   newNode.appendChild(deleteButton);
-  
+
+  //make node able to be highlighed
+  newNode.setAttribute("data-highlight", "false");
+
   //make new node draggable and have functions for what to do when dragging
   newNode.draggable = "true";
   newNode.ondragstart = function drag(event) {
@@ -163,30 +166,52 @@ function createNewNode(event, top, left) {
 
   //rename node when double clicking
   newNode.ondblclick = function(event) {
-    var inputForm = document.createElement("form");
-    var inputText = document.createElement("input");
-    inputText.type = "text";
-    inputForm.appendChild(inputText);
-    inputForm.onsubmit = function(argument) {
-      var nodeName = inputText.value;
-      if (!features.includes(nodeName)){
-        alert("Invalid node name, try again");
-      } else {
-        console.log(newNode.id, nodeName);
-        //keep this not in the add node name function
-        newNode.removeChild(inputForm);
+    if (newNode.getAttribute("data-highlight") == "false"){
+      var inputForm = document.createElement("form");
+      var inputText = document.createElement("input");
+      inputText.type = "text";
+      inputForm.appendChild(inputText);
+      inputForm.onsubmit = function(argument) {
+        var nodeName = inputText.value;
+        if (!features.includes(nodeName)){
+          alert("Invalid node name, try again");
+        } else {
+          //keep this not in the add node name function
+          newNode.removeChild(inputForm);
 
-        addNodeName(newNode.id, nodeName);
+          addNodeName(newNode.id, nodeName);
+        }
+        return false;
       }
-      return false;
-    }
 
-    newNode.appendChild(inputForm);
+      newNode.appendChild(inputForm);
+    } else {
+      splitNode(newNode.id);
+    }
+  }
+
+  newNode.onclick = function(event) {
+    if (event.ctrlKey){
+      if (newNode.getAttribute("data-highlight") == "false"){
+        newNode.setAttribute("data-highlight", "true");
+        newNode.style.border = "5px solid blue";
+      } else {
+        newNode.setAttribute("data-highlight", "false");
+        newNode.style.border = "1px solid grey";
+      }
+    } else {
+
+    }
   }
 
   //append new node to documeent body, add node ID to array of nodes
   document.body.appendChild(newNode);
   nodes.push(newNode.id);
+
+  if (name != null){
+    addNodeName(newNode.id, name);
+  }
+  return newNode.id;
 }
 
 /////////////////Helper functions for creating a new node///////////////////////
@@ -726,15 +751,17 @@ function createSplitNodeForm() {
     var oldNode = document.getElementById(nodeToSplit);
     var firstDataCol = splitSelect1.value;
     var secondDataCol = splitSelect2.value;
+    var newNodeName1 = features[firstDataCol];
+    var newNodeName2 = features[secondDataCol];
 
+    console.log(oldNode.style.left, oldNode.style.top);
     //create two new nodes with name from data column
     var leftVal1 = parseInt(oldNode.style.left.slice(0,3)) - 100;
-    createNewNode(event, oldNode.style.top, leftVal1);
+    createNewNode(event, oldNode.style.top, leftVal1+"px", newNodeName1);
 
     //create second node with name from dataColumn
     var leftVal2 = parseInt(oldNode.style.left.slice(0,3)) + 100;
-    createNewNode(event, oldNode.style.top, leftVal2);
-
+    createNewNode(event, oldNode.style.top, leftVal2+"px", newNodeName2);
 
     //add children to each new node
     for (var i=0; i<children[nodeToSplit].length; i++){
@@ -762,6 +789,38 @@ function createSplitNodeForm() {
 
   document.getElementById("split").appendChild(splitTable);
 
+}
+
+function splitNode(nodeID) {
+  //get which node to split and which columns for new nodes
+    var oldNode = document.getElementById(nodeID);
+    newNodeName1 = nodeID+"1";
+    newNodeName2 = nodeID+"2";
+
+    //create two new nodes with name from data column
+    var leftVal1 = parseInt(oldNode.style.left.slice(0,3)) - 100;
+    createNewNode(event, oldNode.style.top, leftVal1+"px", newNodeName1);
+
+    //create second node with name from dataColumn
+    var leftVal2 = parseInt(oldNode.style.left.slice(0,3)) + 100;
+    createNewNode(event, oldNode.style.top, leftVal2+"px", newNodeName2);
+
+    //add children to each new node
+    for (var i=0; i<children[nodeID].length; i++){
+      var child = children[nodeID][i];
+      connectNodesHelper(newNodeName1, child);
+      connectNodesHelper(newNodeName2, child);
+    }
+
+    //add parents to each new node
+    for (var j=0; j<parents[nodeID].length; j++){
+      var parent = parents[nodeID][j];
+      connectNodesHelper(parent, newNodeName1);
+      connectNodesHelper(parent, newNodeName2);
+    }
+
+    //delete node to split
+    deleteNode(nodeID);
 }
 
 function createMergeNodeForm() {
@@ -831,7 +890,7 @@ function createMergeNodeForm() {
   var col4 = document.createElement("td");
   var mergeSubmit = document.createElement("button");
   mergeSubmit.innerHTML = "Submit";
-  mergeSubmit.onclick = function (argument) {
+  mergeSubmit.onclick = function (event) {
     var firstRemove = mergeSelect1.value;
     var secondRemove = mergeSelect2.value;
     var newNodeName = features[mergeSelect3.value];
@@ -839,17 +898,9 @@ function createMergeNodeForm() {
     var oldNode1 = document.getElementById(firstRemove);
     var oldNode2 = document.getElementById(secondRemove);
 
-    var newNode = document.createElement("div");
-    newNode.className = "node";
-    newNode.id = newNodeName;
-    newNode.innerHTML = newNodeName;
-    newNode.style.position = "absolute";
-    newNode.style.top = (parseInt(oldNode1.style.top.slice(0,3))+parseInt(oldNode2.style.top.slice(0,3)))/2 + "px";
-    newNode.style.left = (parseInt(oldNode1.style.left.slice(0,3))+parseInt(oldNode2.style.left.slice(0,3)))/2 + "px";
-    nodes.push(newNodeName);
-
-    document.body.appendChild(newNode);
-    addNodeHelper(newNodeName);
+    var top = (parseInt(oldNode1.style.top.slice(0,3))+parseInt(oldNode2.style.top.slice(0,3)))/2 + "px";
+    var left = (parseInt(oldNode1.style.left.slice(0,3))+parseInt(oldNode2.style.left.slice(0,3)))/2 + "px";
+    createNewNode(event, top, left, newNodeName);
 
     for (var i=0; i<parents[firstRemove].length; i++){
       var parent1 = parents[firstRemove][i];
@@ -1219,9 +1270,8 @@ function getResults(event) {
       //set the value of the node if it is true or false
       if (propFormVal != "Not Given"){
         numAssigned += 1;
-        var firstNode = document.getElementById(nodes[i]);
-        firstNode.innerHTML += "<br />"
-        firstNode.innerHTML += "<span style='color:red'>"+propFormVal+"</span>";
+        var firstNodeInfo = document.getElementById(nodes[i]+"Info");
+        firstNodeInfo.innerHTML += "<span style='color:red'>"+propFormVal+"</span>";
       }
     }
     if (numAssigned == 0){
@@ -1255,11 +1305,10 @@ function getResults(event) {
   }
 
   //write the value to the highest unassigned node
-  var node = document.getElementById(highestUnassigned);
-  node.innerHTML += "<br />";
-  node.innerHTML += "Probability = "+probability*100+"%";
-  node.innerHTML += "<br />";
-  node.innerHTML += "<span style='color:red'>"+setValues[highestUnassigned]+"</span>";
+  var nodeInfo = document.getElementById(highestUnassigned+"Info");
+  nodeInfo.innerHTML += "Probability = "+probability*100+"%";
+  nodeInfo.innerHTML += "<br />";
+  nodeInfo.innerHTML += "<span style='color:red'>"+setValues[highestUnassigned]+"</span>";
   console.log("made it here");
 
 }
