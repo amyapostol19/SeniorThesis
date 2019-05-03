@@ -17,6 +17,7 @@ var colorOptions = ["Red", "#OrangeRed", "Teal", "Blue", "Aqua",
 //for making connections
 var connectMode = false;
 var drawMode = false;
+var twoNodes = [];
 
 //testing
 var testData = []
@@ -182,18 +183,14 @@ function createNewNode(event, top, left, name) {
   newNode.style.top = top;
   newNode.style.left = left;
 
-  if (name != null){ //we're creating a new node for the board and assigning it a name
-    //create delete button on node
-    addNodeAttributes(newNode);
-    addNodeName(newNode.id, name);
-  } else {
-    waitingNode = newNode.id;
-  }
-
   //make new node draggable and have functions for what to do when dragging
   newNode.draggable = "true";
   newNode.ondragstart = function drag(event) {
-    event.dataTransfer.setData("text", event.target.id);
+    if (connectMode){
+
+    } else {
+      event.dataTransfer.setData("text", event.target.id);
+    }
   }
 
   /*when drag ends, either
@@ -247,12 +244,38 @@ function createNewNode(event, top, left, name) {
         newNode.style.border = "1px solid grey";
       }
     } else {
+      if (connectMode){
+        if (drawMode){
 
+        } else {
+          twoNodes.push(newNode.id);
+          drawMode = true;
+        }
+      }
+    }
+  }
+
+  newNode.onmouseover = function(event) {
+    if (connectMode && drawMode){
+      if (!twoNodes.includes(newNode.id)){
+        twoNodes.push(newNode.id);
+        connectNodesHelper(twoNodes[0], twoNodes[1]);
+        drawMode = false;
+        twoNodes = [];
+      }
     }
   }
 
   //append new node to document body
   document.body.appendChild(newNode);
+
+  if (name != null){ //we're creating a new node for the board and assigning it a name
+    //create delete button on node
+    addNodeAttributes(newNode);
+    addNodeName(newNode.id, name);
+  } else {
+    waitingNode = newNode.id;
+  }
   
   return newNode.id;
 }
@@ -318,6 +341,7 @@ We already know features should include new node name
 function addNodeName(oldID, newID) {
   //get the old node
   var node = document.getElementById(oldID);
+  console.log(node);
 
   //change the name and redefine the name div ID
   var nameDiv = document.getElementById(oldID+"Name");
@@ -334,10 +358,28 @@ function addNodeName(oldID, newID) {
   var oldChildren = children[oldID];
   delete children[oldID];
   children[newID] = oldChildren;
+  //change the parent name for all its children
+  for (var i=0; i<oldChildren.length; i++){
+    var child = oldChildren[i];
+    var parList = parents[child];
+    var badIndex1 = parList.indexOf(oldID);
+    parList.splice(badIndex1, 1);
+    parList.push(newID);
+    parents[child] = parList;
+  }
 
   var oldParents = parents[oldID];
   delete parents[oldID];
   parents[newID] = oldParents;
+  //change the child name for all nodes parents
+  for (var j=0; j<oldParents.length; j++){
+    var parent = oldParents[j];
+    var childList = children[parent];
+    var badIndex2 = childList.indexOf(oldID);
+    childList.splice(badIndex2, 1);
+    childList.push(newID);
+    children[parent] = childList;
+  }
 
   //remove old node id from list of nodes and add new node id
   var oldIndex = nodes.indexOf(oldID);
@@ -366,66 +408,71 @@ function addNodeName(oldID, newID) {
 
   //replace names on get results form if oldID was previously in features
   //or append new name to get results form
-  var resultsOption;
-  if (features.includes(oldID)){
-    resultsOption = document.getElementById("resultOption"+oldID);
-    document.getElementById("resultsForm").removeChild(resultsOption);
-  } else {
-    resultsOption = document.createElement("option");
+  if (features.includes(newID)){
+    var resultsOption;
+    if (features.includes(oldID)){
+      resultsOption = document.getElementById("resultOption"+oldID);
+      document.getElementById("resultsForm").removeChild(resultsOption);
+    } else {
+      resultsOption = document.createElement("option");
+    }
+    resultsOption.setAttribute("value", newID);
+    resultsOption.setAttribute("id", "resultOption"+newID);
+    resultsOption.innerHTML = newID;
+    document.getElementById("resultsForm").appendChild(resultsOption);
+
+
+    //append new name to propogate results options or replace old name with new name
+    var table = document.getElementById("propTable");
+    var row;
+    if (features.includes(oldID)){
+      row = document.getElementById("propRow"+oldID);
+      table.removeChild(row);
+    }
+    row = document.createElement("tr");
+    row.setAttribute("id", "propRow"+newID);
+
+    //create first element in row
+    var tag = document.createElement("td");
+    tag.style.width = "160px";
+    tag.innerHTML = newID;
+
+    //create given form in row
+    var formTD = document.createElement("td");
+    var newForm = document.createElement("form");
+    var select = document.createElement("select");
+    select.setAttribute("id", "propForm"+newID);
+
+    //create options for the form
+    //given true option
+    var givenTrue = document.createElement("option");
+    givenTrue.setAttribute("value", "True");
+    givenTrue.innerHTML = "True";
+    select.appendChild(givenTrue);
+
+    //given false option
+    var givenFalse = document.createElement("option");
+    givenFalse.setAttribute("value", "False");
+    givenFalse.innerHTML = "False";
+    select.appendChild(givenFalse);
+
+    //not given option
+    var notGiven = document.createElement("option");
+    notGiven.setAttribute("value", "Not Given");
+    notGiven.innerHTML = "Not Given";
+    select.appendChild(notGiven);
+
+    newForm.appendChild(select);
+    formTD.appendChild(newForm);
+
+    //add final appends
+    row.appendChild(tag);
+    row.appendChild(formTD);
+    table.appendChild(row);
   }
-  resultsOption.setAttribute("value", newID);
-  resultsOption.setAttribute("id", "resultOption"+newID);
-  resultsOption.innerHTML = newID;
-  document.getElementById("resultsForm").appendChild(resultsOption);
 
-
-  //append new name to propogate results options or replace old name with new name
-  var table = document.getElementById("propTable");
-  var row;
-  if (features.includes(oldID)){
-    row = document.getElementById("propRow"+oldID);
-    table.removeChild(row);
-  }
-  row = document.createElement("tr");
-  row.setAttribute("id", "propRow"+newID);
-
-  //create first element in row
-  var tag = document.createElement("td");
-  tag.style.width = "160px";
-  tag.innerHTML = newID;
-
-  //create given form in row
-  var formTD = document.createElement("td");
-  var newForm = document.createElement("form");
-  var select = document.createElement("select");
-  select.setAttribute("id", "propForm"+newID);
-
-  //create options for the form
-  //given true option
-  var givenTrue = document.createElement("option");
-  givenTrue.setAttribute("value", "True");
-  givenTrue.innerHTML = "True";
-  select.appendChild(givenTrue);
-
-  //given false option
-  var givenFalse = document.createElement("option");
-  givenFalse.setAttribute("value", "False");
-  givenFalse.innerHTML = "False";
-  select.appendChild(givenFalse);
-
-  //not given option
-  var notGiven = document.createElement("option");
-  notGiven.setAttribute("value", "Not Given");
-  notGiven.innerHTML = "Not Given";
-  select.appendChild(notGiven);
-
-  newForm.appendChild(select);
-  formTD.appendChild(newForm);
-
-  //add final appends
-  row.appendChild(tag);
-  row.appendChild(formTD);
-  table.appendChild(row);
+  console.log("parents", parents);
+  console.log("children", children);
   
 }
 
