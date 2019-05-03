@@ -18,6 +18,7 @@ var colorOptions = ["Red", "#OrangeRed", "Teal", "Blue", "Aqua",
 var connectMode = false;
 var drawMode = false;
 var twoNodes = [];
+var divList = [];
 
 //testing
 var testData = []
@@ -27,7 +28,6 @@ var testCorrect = 0;
 //for propogating results
 var setValues = {}
 var probabilities = {}
-
 
 
 
@@ -204,7 +204,6 @@ function createNewNode(event, top, left, name) {
       addNodeAttributes(newNode);
       createNewNode(event, top, left, null); //create a waiting node
     }
-    console.log("end drag", waitingNode, nodes);
   }
 
   //rename node when double clicking
@@ -339,6 +338,7 @@ function dragAndDrop(node, prev_event) {
 We already know features should include new node name
 */
 function addNodeName(oldID, newID) {
+  console.log("adding node name", oldID, newID);
   //get the old node
   var node = document.getElementById(oldID);
   console.log(node);
@@ -386,29 +386,21 @@ function addNodeName(oldID, newID) {
   nodes.splice(oldIndex, 1);
   nodes.push(newID);
 
-  //compute probabilities for this node assuming no current parents or children
-  if (oldID in probabilities){
-    delete probabilities[oldID];
-  }
-  computeProbabilities(newID);
-
-  //append new names to connect node options (maybe eventually get rid of)
-  var option1 = document.createElement("option");
-  option1.setAttribute('value', newID);
-  option1.setAttribute('id', "connectOption1"+newID);
-  option1.innerHTML = newID;
-  document.getElementById("connectSelect1").appendChild(option1);
-
-  var option2 = document.createElement("option");
-  option2.setAttribute('value', newID);
-  option2.setAttribute('id', "connectOption2"+newID);
-  option2.innerHTML = newID;
-  document.getElementById("connectSelect2").appendChild(option2);
-
+  if (features.includes(newID)){
+    //compute probabilities for this node assuming no current parents or children
+    if (oldID in probabilities){
+      delete probabilities[oldID];
+    }
+    computeProbabilities(newID);
+    console.log("children", children[newID]);
+    for (var j=0; j<children[newID].length; j++){
+      var jchild = children[newID][j];
+      console.log("jchild", jchild);
+      computeProbabilities(children[newID][j]);
+    }
 
   //replace names on get results form if oldID was previously in features
   //or append new name to get results form
-  if (features.includes(newID)){
     var resultsOption;
     if (features.includes(oldID)){
       resultsOption = document.getElementById("resultOption"+oldID);
@@ -510,12 +502,6 @@ function deleteNode(nodeID) {
   //remove from body
   var nodeElem = document.getElementById(nodeID);
   document.body.removeChild(nodeElem);
-
-  //remove from connect options
-  var connectOption1 = document.getElementById("connectOption1"+nodeID);
-  document.getElementById("connectSelect1").removeChild(connectOption1);
-  var connectOption2 = document.getElementById("connectOption2"+nodeID);
-  document.getElementById("connectSelect2").removeChild(connectOption2);
 
   //remove name from get results option
   var resultOption = document.getElementById("resultOption"+nodeID);
@@ -673,11 +659,13 @@ function switchConnectMode() {
   if (connectMode){
     connectMode = false;
     document.getElementById("ConnectModeButton").style.background = "white";
+    document.getElementById("dropzone").removeEventListener("mousemove", draw);
   } else {
     if (nodes.length < 2){
       alert("Must have at least two nodes to enter connect mode");
       return;
     }
+    document.getElementById("dropzone").addEventListener("mousemove", draw);
     connectMode = true;
     document.getElementById("ConnectModeButton").style.background = "grey";
   }
@@ -700,6 +688,26 @@ function connectTwoNodes(event) {
 
   connectNodesHelper(parent, child);
  
+}
+
+var draw = function(event) {
+  drawConnectLine(event);
+}
+
+function drawConnectLine(event) {
+  if (drawMode){
+    var div = document.createElement("div");
+    div.style.position = "absolute";
+    div.style.width = "3px";
+    div.style.height = "3px";
+    div.style.background = "white";
+    var x = event.clientX;
+    var y = event.clientY;
+    div.style.top = y+"px";
+    div.style.left = x+"px";
+    divList.push(div);
+    document.body.appendChild(div);
+  }
 }
 
 function connectNodesHelper(parent, child) {
@@ -739,10 +747,15 @@ function connectNodesHelper(parent, child) {
   }
   line.setAttribute("y1", 0);
   line.setAttribute("y2", height-50);
-  line.setAttribute("style", "strokeWidth: 2");
+  line.setAttribute("style", "strokeWidth: 4");
 
   svg.appendChild(line);
   document.body.appendChild(svg);
+
+  for (var i=0; i<divList.length; i++){
+    document.body.removeChild(divList[i]);
+  }
+  divList = [];
 
   computeProbabilities(child);
 }
@@ -914,35 +927,40 @@ function createSplitNodeForm() {
 }
 
 function splitNode(nodeID) {
+  console.log("splitting node!!!", nodeID);
   //get which node to split and which columns for new nodes
-    var oldNode = document.getElementById(nodeID);
-    newNodeName1 = nodeID+"1";
-    newNodeName2 = nodeID+"2";
+  var oldNode = document.getElementById(nodeID);
+  newNodeName1 = nodeID+"1";
+  newNodeName2 = nodeID+"2";
 
-    //create two new nodes with name from data column
-    var leftVal1 = parseInt(oldNode.style.left.slice(0,3)) - 100;
-    createNewNode(event, oldNode.style.top, leftVal1+"px", newNodeName1);
+  console.log("got two new nodes");
 
-    //create second node with name from dataColumn
-    var leftVal2 = parseInt(oldNode.style.left.slice(0,3)) + 100;
-    createNewNode(event, oldNode.style.top, leftVal2+"px", newNodeName2);
+  //create two new nodes with name from data column
+  var leftVal1 = parseInt(oldNode.style.left.slice(0,3)) - 100;
+  createNewNode(event, oldNode.style.top, leftVal1+"px", newNodeName1);
 
-    //add children to each new node
-    for (var i=0; i<children[nodeID].length; i++){
-      var child = children[nodeID][i];
-      connectNodesHelper(newNodeName1, child);
-      connectNodesHelper(newNodeName2, child);
-    }
+  console.log("created first node");
 
-    //add parents to each new node
-    for (var j=0; j<parents[nodeID].length; j++){
-      var parent = parents[nodeID][j];
-      connectNodesHelper(parent, newNodeName1);
-      connectNodesHelper(parent, newNodeName2);
-    }
+  //create second node with name from dataColumn
+  var leftVal2 = parseInt(oldNode.style.left.slice(0,3)) + 100;
+  createNewNode(event, oldNode.style.top, leftVal2+"px", newNodeName2);
 
-    //delete node to split
-    deleteNode(nodeID);
+  //add children to each new node
+  for (var i=0; i<children[nodeID].length; i++){
+    var child = children[nodeID][i];
+    connectNodesHelper(newNodeName1, child);
+    connectNodesHelper(newNodeName2, child);
+  }
+
+  //add parents to each new node
+  for (var j=0; j<parents[nodeID].length; j++){
+    var parent = parents[nodeID][j];
+    connectNodesHelper(parent, newNodeName1);
+    connectNodesHelper(parent, newNodeName2);
+  }
+
+  //delete node to split
+  deleteNode(nodeID);
 }
 
 function createMergeNodeForm() {
@@ -1105,7 +1123,14 @@ function computeProbabilities(childNode) {
   }
 
   function helper(currentNode) {
-    if (parents[currentNode].length == 0){
+    var validParents = [];
+    for (var i=0; i<parents[currentNode].length; i++){
+      if (features.includes(parents[currentNode][i])){
+        validParents.push(parents[currentNode][i]);
+      }
+    }
+
+    if (validParents.length == 0){
       //if node doesn't have any parents just compute probability of true and false
       var True = 0;
       var False = 0;
@@ -1126,13 +1151,13 @@ function computeProbabilities(childNode) {
 
     //node has parents
     else {
-      for (var i=0; i<parents[currentNode].length; i++){
-        helper(parents[currentNode][i]);
+      for (var i=0; i<validParents.length; i++){
+        helper(validParents[i]);
       }
 
       countDict = {};
       trueCountDict = {}
-      permutations = getParentPermutations(parents[currentNode]);
+      permutations = getParentPermutations(validParents);
       for (var i=0; i<permutations.length; i++){
         countDict[permutations[i]] = 0;
         trueCountDict[permutations[i]] = 0;
@@ -1142,7 +1167,7 @@ function computeProbabilities(childNode) {
       for (var j=0; j<data.length; j++){
 
         //for each data point check if a particular permutation matches that data point
-        var permutation = getPermutation(parents[currentNode], data[j]);
+        var permutation = getPermutation(validParents, data[j]);
         countDict[permutation] += 1;
         var finalNodeIndex = features.indexOf(currentNode);
         if (data[j][finalNodeIndex] == "1"){
@@ -1160,8 +1185,8 @@ function computeProbabilities(childNode) {
     }
   }
 
-  console.log(probabilities);
   helper(finalNode);
+  console.log("computing", finalNode, probabilities);
 }
 
 function readTestFile() {
@@ -1220,7 +1245,6 @@ function runTests(event) {
   var givens = parents[finalVariable];
   //set the values of the givens
   for (var i=0; i<givens.length; i++){
-    console.log("parent", givens[i]);
     var givenIndex = features.indexOf(givens[i]);
     setValues[givens[i]] = (dataPoint[givenIndex] == "1");
     //var node = document.getElementById(givens[i]);
@@ -1228,7 +1252,6 @@ function runTests(event) {
     //node.innerHTML += "<span style='color:red'>"+setValues[givens[i]]+"</span>";
   }
 
-  console.log("set values", setValues);
   console.log(probabilities);
 
   //populates setValues dictionary
@@ -1236,18 +1259,14 @@ function runTests(event) {
     console.log("current node", currentNode);
     //base case, no parents, set value
     if (parents[currentNode].length == 0){
-      console.log("no parents");
       if (!(currentNode in setValues)){
-        console.log("node not in set values");
         var probability = probabilities[currentNode][true];
-        console.log("probablity", probability);
         var randomNum = Math.random();
         if (randomNum <= probability){
           setValues[currentNode] = true;
         } else {
           setValues[currentNode] = false;
         }
-        console.log("new set value", setValues[currentNode]);
 
         if (currentNode != finalVariable){
           var nodeInfo = document.getElementById(currentNode+"Info");
@@ -1286,8 +1305,6 @@ function runTests(event) {
           parentKey += "&";
         }
       }
-
-      console.log("parent key", parentKey);
 
       var finalprobability = probabilities[currentNode][parentKey];
       var finalrandomNum = Math.random();
