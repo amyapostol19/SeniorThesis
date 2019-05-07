@@ -187,7 +187,7 @@ function createNewNode(event, top, left, name) {
   newNode.draggable = "true";
   newNode.ondragstart = function drag(event) {
     if (connectMode){
-
+      
     } else {
       event.dataTransfer.setData("text", event.target.id);
     }
@@ -328,6 +328,10 @@ function addNodeName(oldID, newID) {
     parList.splice(badIndex1, 1);
     parList.push(newID);
     parents[child] = parList;
+
+    //change the svg line for all children
+    var parLine = document.getElementById(oldID+child+"line");
+    parLine.id = newID+child+"line";
   }
 
   var oldParents = parents[oldID];
@@ -341,6 +345,9 @@ function addNodeName(oldID, newID) {
     childList.splice(badIndex2, 1);
     childList.push(newID);
     children[parent] = childList;
+
+    var childLine = document.getElementById(parent+oldID+"line");
+    childLine.id = parent+newID+"line";
   }
 
   //remove old node id from list of nodes and add new node id
@@ -442,6 +449,7 @@ function deleteNode(nodeID) {
   var childListCopy = children[nodeID].slice(0);
   for (var i=0; i<childListCopy.length; i++){
     var child = childListCopy[i];
+    console.log("parent, child, disconnect", nodeID, child);
     disconnectNodes(nodeID, child);
   }
   //disconnect node from all parents
@@ -623,6 +631,9 @@ function stopAnimation() {
 
 function switchConnectMode() {
   if (connectMode){
+    for (var i=0; i<nodes.length; i++){
+      document.getElementById(nodes[i]).draggable = "true";
+    }
     connectMode = false;
     document.getElementById("ConnectModeButton").style.background = "white";
     document.getElementById("dropzone").removeEventListener("mousemove", draw);
@@ -630,6 +641,9 @@ function switchConnectMode() {
     if (nodes.length < 2){
       alert("Must have at least two nodes to enter connect mode");
       return;
+    }
+    for (var i=0; i<nodes.length; i++){
+      document.getElementById(nodes[i]).draggable = "false";
     }
     document.getElementById("dropzone").addEventListener("mousemove", draw);
     connectMode = true;
@@ -685,6 +699,7 @@ function connectNodesHelper(parent, child) {
   svg.style.top = Math.min(y1, y2)+50;
   svg.style.left = Math.min(x1, x2)+65;
   svg.style.stroke = "white";
+  svg.zIndex = 1;
 
   var line = document.createElementNS("http://www.w3.org/2000/svg", "line");
   if (x1 > x2){
@@ -697,6 +712,7 @@ function connectNodesHelper(parent, child) {
   line.setAttribute("y1", 0);
   line.setAttribute("y2", height-50);
   line.setAttribute("style", "strokeWidth: 4");
+  line.setAttribute("style", "marker-end: url(#arrow)");
 
   svg.appendChild(line);
   document.body.appendChild(svg);
@@ -776,6 +792,11 @@ function disconnectNodes(parent, child) {
 ///////////////Section 4: Splitting and Merging Nodes///////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 function splitNodeButton(event) {
+  if (connectMode){
+    alert("Please exit connect mode");
+    return;
+  }
+
   var prevNodeList = nodes.slice(0);
   for (var i=0; i<prevNodeList.length; i++){
     var node = document.getElementById(prevNodeList[i])
@@ -786,6 +807,11 @@ function splitNodeButton(event) {
 }
 
 function splitNode(nodeID) {
+  if (connectMode){
+    alert("Please exit connect mode");
+    return;
+  }
+
   //get which node to split and which columns for new nodes
   var oldNode = document.getElementById(nodeID);
   newNodeName1 = nodeID+"1";
@@ -818,6 +844,11 @@ function splitNode(nodeID) {
 }
 
 function mergeNodeButton(event) {
+  if (connectMode){
+    alert("Please exit connect mode");
+    return;
+  }
+
   var highlighted = [];
   for (var i=0; i<nodes.length; i++){
     var node = document.getElementById(nodes[i]);
@@ -838,6 +869,11 @@ function mergeNodeButton(event) {
 }
 
 function mergeNodes(firstNode, secondNode) {
+  if (connectMode){
+    alert("Please exit connect mode");
+    return;
+  }
+
   var newNodeName = firstNode+"&"+secondNode;
 
   var oldNode1 = document.getElementById(firstNode);
@@ -998,7 +1034,7 @@ function readTestFile() {
 
       testData.length = 0;
       for (var i=1; i<info.length-1; i++){
-        testData.push(info[i].split(','));
+        testData.push(info[i].slice(0,-1).split(','));
       }
     }
   }
@@ -1019,6 +1055,13 @@ function runTests(event) {
   if (testData.length == 0){
     alert("Please upload test data");
     return;
+  }
+
+  for (var i=0; i<nodes.length; i++){
+    if (!features.includes(nodes[i])){
+      alert("Not all nodes are named correctly. Please rename nodes to feature names");
+      return;
+    }
   }
 
   clearResults();
@@ -1184,7 +1227,7 @@ function getResults(event) {
       if (propFormVal != "Not Given"){
         numAssigned += 1;
         var firstNodeInfo = document.getElementById(nodes[i]+"Info");
-        firstNodeInfo.innerHTML += "<span style='color:red'>"+propFormVal+"</span>";
+        firstNodeInfo.innerHTML += "<span style='color:aqua'>"+propFormVal+"</span>";
       }
     }
     if (numAssigned == 0){
