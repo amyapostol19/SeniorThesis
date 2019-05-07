@@ -208,14 +208,25 @@ function createNewNode(event, top, left, name) {
 
   //rename node when double clicking
   newNode.ondblclick = function(event) {
+    if (!nodes.includes(newNode.id)){
+      return;
+    }
+
     if (newNode.getAttribute("data-highlight") == "false"){
       //create input form for user to write in node name
       var inputForm = document.createElement("form");
-      var inputText = document.createElement("input");
-      inputText.type = "text";
-      inputForm.appendChild(inputText);
-      inputForm.onsubmit = function(argument) {
-        var nodeName = inputText.value;
+      var inputSelect = document.createElement("select");
+      for (var i=0; i<features.length; i++){
+        var inputOption = document.createElement("option");
+        inputOption.innerHTML = features[i];
+        inputSelect.appendChild(inputOption);
+      }
+      inputForm.appendChild(inputSelect);
+      var submit = document.createElement("button");
+      submit.innerHTML = "Submit";
+      inputForm.appendChild(submit);
+      submit.onclick = function(argument) {
+        var nodeName = inputSelect.value;
         if (!features.includes(nodeName)){
           alert("Invalid node name, try again");
         } else {
@@ -280,52 +291,6 @@ function createNewNode(event, top, left, name) {
 }
 
 /////////////////Helper functions for creating a new node///////////////////////
-
-//Found example on the internet. TODO site author
-function dragAndDrop(node, prev_event) {
-
-  function move(event) { // (1) start the process
-
-    let shiftX = event.clientX - node.getBoundingClientRect().left;
-    let shiftY = event.clientY - node.getBoundingClientRect().top;
-
-    // (2) prepare to moving: make absolute and on top by z-index
-    node.style.position = 'absolute';
-    node.style.zIndex = 500;
-    // move it out of any current parents directly into body
-    // to make it positioned relative to the body
-    document.body.append(node);
-    // ...and put that absolutely positioned ball under the cursor
-
-    moveAt(event.pageX, event.pageY);
-
-    // centers the node at (pageX, pageY) coordinates
-    function moveAt(pageX, pageY) {
-      node.style.left = pageX - shiftX + 'px';
-      node.style.top = pageY - shiftY + 'px';
-    }
-
-    function onMouseMove(event) {
-      moveAt(event.pageX, event.pageY);
-    }
-
-    // (3) move the node on mousemove
-    document.addEventListener('mousemove', onMouseMove);
-
-    // (4) drop the node, remove unneeded handlers
-    node.onmouseup = function() {
-      document.removeEventListener('mousemove', onMouseMove);
-      node.onmouseup = null;
-    };
-
-  };
-
-  move(prev_event);
-
-  node.ondragstart = function() {
-    return false;
-  }
-}
 
 /**
 (1) Add name to the node
@@ -397,16 +362,26 @@ function addNodeName(oldID, newID) {
   //replace names on get results form if oldID was previously in features
   //or append new name to get results form
     var resultsOption;
+    var testOption
     if (features.includes(oldID)){
       resultsOption = document.getElementById("resultOption"+oldID);
       document.getElementById("resultsForm").removeChild(resultsOption);
+
+      testOption = document.getElementById("testOption"+oldID);
+      document.getElementById("testForm").removeChild(testOption);
     } else {
       resultsOption = document.createElement("option");
+      testOption = document.createElement("option");
     }
     resultsOption.setAttribute("value", newID);
     resultsOption.setAttribute("id", "resultOption"+newID);
     resultsOption.innerHTML = newID;
     document.getElementById("resultsForm").appendChild(resultsOption);
+
+    testOption.setAttribute("value", newID);
+    testOption.setAttribute("id", "testOption"+newID);
+    testOption.innerHTML = newID;
+    document.getElementById("testForm").appendChild(testOption);
 
 
     //append new name to propogate results options or replace old name with new name
@@ -496,6 +471,10 @@ function deleteNode(nodeID) {
     //remove from givens option
     var row = document.getElementById("propRow"+nodeID);
     document.getElementById("propTable").removeChild(row);
+
+    //remove name from test option
+    var testOption = document.getElementById("testOption"+nodeID);
+    document.getElementById("testForm").removeChild(testOption);
 
     //remove from probabilities
     delete probabilities[nodeID];
@@ -1049,7 +1028,7 @@ function runTests(event) {
     testCorrect = 0;
   }
 
-  var finalVariable = "Plane Doesn't Land";
+  var finalVariable = document.getElementById("testForm").value;
   var dataPoint = testData[testCounter];
 
   //TODO givens should be more than just the parents, givens should be every node
