@@ -237,7 +237,7 @@ function createNewNode(event, top, left, name) {
     if (event.ctrlKey){
       if (newNode.getAttribute("data-highlight") == "false"){
         newNode.setAttribute("data-highlight", "true");
-        newNode.style.border = "5px solid blue";
+        newNode.style.border = "5px solid white";
       } else {
         newNode.setAttribute("data-highlight", "false");
         newNode.style.border = "1px solid grey";
@@ -323,7 +323,6 @@ function dragAndDrop(node, prev_event) {
   move(prev_event);
 
   node.ondragstart = function() {
-    console.log("drag", prev_event);
     return false;
   }
 }
@@ -338,10 +337,8 @@ function dragAndDrop(node, prev_event) {
 We already know features should include new node name
 */
 function addNodeName(oldID, newID) {
-  console.log("adding node name", oldID, newID);
   //get the old node
   var node = document.getElementById(oldID);
-  console.log(node);
 
   //change the name and redefine the name div ID
   var nameDiv = document.getElementById(oldID+"Name");
@@ -392,10 +389,8 @@ function addNodeName(oldID, newID) {
       delete probabilities[oldID];
     }
     computeProbabilities(newID);
-    console.log("children", children[newID]);
     for (var j=0; j<children[newID].length; j++){
       var jchild = children[newID][j];
-      console.log("jchild", jchild);
       computeProbabilities(children[newID][j]);
     }
 
@@ -462,34 +457,23 @@ function addNodeName(oldID, newID) {
     row.appendChild(formTD);
     table.appendChild(row);
   }
-
-  console.log("parents", parents);
-  console.log("children", children);
   
 }
 
 function deleteNode(nodeID) {
-  if (!features.includes(nodeID)){
-    //remove from nodes list
-    var nodeIndex = nodes.indexOf(nodeID);
-    nodes.splice(nodeIndex, 1);
-
-    document.body.removeChild(document.getElementById(nodeID));
-    return;
-  }
 
   //remove all connections
   //disconnect node from all children
   var childListCopy = children[nodeID].slice(0);
   for (var i=0; i<childListCopy.length; i++){
     var child = childListCopy[i];
-    disconnectNodesHelper(nodeID, child);
+    disconnectNodes(nodeID, child);
   }
   //disconnect node from all parents
   var parentListCopy = parents[nodeID].slice(0);
   for (var j=0; j<parentListCopy.length; j++){
     var parent = parentListCopy[j];
-    disconnectNodesHelper(parent, nodeID);
+    disconnectNodes(parent, nodeID);
   }
 
   delete parents[nodeID];
@@ -503,16 +487,19 @@ function deleteNode(nodeID) {
   var nodeElem = document.getElementById(nodeID);
   document.body.removeChild(nodeElem);
 
-  //remove name from get results option
-  var resultOption = document.getElementById("resultOption"+nodeID);
-  document.getElementById("resultsForm").removeChild(resultOption);
+  if (features.includes(nodeID)){
 
-  //remove from givens option
-  var row = document.getElementById("propRow"+nodeID);
-  document.getElementById("propTable").removeChild(row);
+    //remove name from get results option
+    var resultOption = document.getElementById("resultOption"+nodeID);
+    document.getElementById("resultsForm").removeChild(resultOption);
 
-  //remove from probabilities
-  delete probabilities[nodeID];
+    //remove from givens option
+    var row = document.getElementById("propRow"+nodeID);
+    document.getElementById("propTable").removeChild(row);
+
+    //remove from probabilities
+    delete probabilities[nodeID];
+  }
 }
 
 function drop(event) {
@@ -671,29 +658,12 @@ function switchConnectMode() {
   }
 }
 
-function connectTwoNodes(event) {
-  if (nodes.length == 0){
-    alert("Please create nodes");
-    return;
-  }
-
-  var parent = document.getElementById("connectSelect1").value;
-  var child = document.getElementById("connectSelect2").value;
-
-  //check to make sure two ndoes are different
-  if (parent == child){
-    alert("Please select two different nodes.");
-    return;
-  }
-
-  connectNodesHelper(parent, child);
- 
-}
 
 var draw = function(event) {
   drawConnectLine(event);
 }
 
+//Draws the pixels that make up the line which will connect two nodes
 function drawConnectLine(event) {
   if (drawMode){
     var div = document.createElement("div");
@@ -760,20 +730,43 @@ function connectNodesHelper(parent, child) {
   computeProbabilities(child);
 }
 
-function disconnectTwoNodes(event) {
-  if (nodes.length == 0){
-    alert("Please create nodes.");
+function disconnectNodesButton(event) {
+  var highlighted = [];
+  for (var i=0; i<nodes.length; i++){
+    var node = document.getElementById(nodes[i]);
+    if (node.getAttribute("data-highlight") == "true"){
+      highlighted.push(nodes[i]);
+    }
+  }
+
+  if (highlighted.length > 2){
+    alert("Please only select two nodes to disconnect");
+    return;
+  } else if (highlighted.length < 2){
+    alert("Please select at least two nodes to disconnect");
     return;
   }
 
-  var parent = document.getElementById("connectSelect1").value;
-  var secondNode = document.getElementById("connectSelect2").value;
+  var firstNode = highlighted[0];
+  var secondNode = highlighted[1];
 
-  disconnectNodesHelper(parent,secondNode);
+  var parent;
+  var child;
+  if (parents[firstNode].includes(secondNode) && children[secondNode].includes(firstNode)){
+    parent = secondNode;
+    child = firstNode;
+    disconnectNodes(parent, child);
+  } else if (parents[secondNode].includes(firstNode) && children[firstNode].includes(secondNode)){
+    parent = firstNode;
+    child = secondNode;
+    disconnectNodes(parent, child);
+  } else {
+    alert("Nodes do not have a parent/child relationship. Please select different nodes.");
+  }
 
 }
 
-function disconnectNodesHelper(parent, child) {
+function disconnectNodes(parent, child) {
   var line = document.getElementById(parent+child+"line");
   if (line == null){
     alert("This connection does not exist.");
@@ -803,143 +796,25 @@ function disconnectNodesHelper(parent, child) {
 ////////////////////////////////////////////////////////////////////////////////
 ///////////////Section 4: Splitting and Merging Nodes///////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
-function createSplitNodeForm() {
-
-  //create table that will hold the split node information
-  var splitTable = document.createElement("table");
-  splitTable.style.position = "absolute";
-  splitTable.style.top = "630px";
-  splitTable.style.left = "600px";
-  splitTable.style.color = "black";
-  splitTable.style.background = "white";
-  //splitTable.style.border = "white";
-
-  //create form to input which node to split
-  var splitRow = document.createElement("tr");
-  var splitCol01 = document.createElement("td");
-  splitCol01.innerHTML = "Choose node to split:";
-  splitCol01.style.width = "100px";
-  splitRow.appendChild(splitCol01);
-
-  var splitCol02 = document.createElement("td");
-  splitCol02.style.width = "100px";
-  var splitForm = document.createElement("form");
-  var splitSelect = document.createElement("select");
-  //populate form with node values so user can choose which node to split
-  for (var i=0; i<nodes.length; i++){
-    var splitOption = document.createElement("option");
-    splitOption.innerHTML = nodes[i];
-    splitSelect.appendChild(splitOption);
-  }
-  splitForm.appendChild(splitSelect);
-  splitCol02.appendChild(splitForm);
-  splitRow.appendChild(splitCol02);
-  splitTable.appendChild(splitRow);
-
-  //create form to list what column of data should be in the split node
-  var splitRow1 = document.createElement("tr");
-  var splitCol11 = document.createElement("td");
-  splitCol11.innerHTML = "Choose column of data for first new node:";
-  splitRow1.appendChild(splitCol11);
-
-  var splitCol12 = document.createElement("td");
-  var splitForm1 = document.createElement("form");
-  var splitSelect1 = document.createElement("select");
-  for (var i=0; i<features.length; i++){
-    var splitOption1 = document.createElement("option");
-    splitOption1.innerHTML = i;
-    splitSelect1.appendChild(splitOption1);
-  }
-  splitForm1.appendChild(splitSelect1);
-  splitCol12.appendChild(splitForm1);
-  splitRow1.appendChild(splitCol12);
-  splitTable.appendChild(splitRow1);
-
-  //create form to choose the second column of data to be in the split node
-  var splitRow2 = document.createElement("tr");
-  var splitCol21 = document.createElement("td");
-  splitCol21.innerHTML = "Choose column of data for second new node:";
-  splitRow2.appendChild(splitCol21);
-
-  var splitCol22 = document.createElement("td");
-  var splitForm2 = document.createElement("form");
-  var splitSelect2 = document.createElement("select");
-  for (var i=0; i<features.length; i++){
-    var splitOption2 = document.createElement("option");
-    splitOption2.innerHTML = i;
-    splitSelect2.appendChild(splitOption2);
-  }
-  splitForm2.appendChild(splitSelect2);
-  splitCol22.appendChild(splitForm2);
-  splitRow2.appendChild(splitCol22);
-  splitTable.appendChild(splitRow2);
-
-  var splitRow3 = document.createElement("tr");
-  var splitCol3 = document.createElement("td");
-  var submitButton = document.createElement("button");
-  submitButton.innerHTML = "Submit";
-
-  submitButton.onclick = function(event) {
-
-    //get which node to split and which columns for new nodes
-    var nodeToSplit = splitSelect.value;
-    var oldNode = document.getElementById(nodeToSplit);
-    var firstDataCol = splitSelect1.value;
-    var secondDataCol = splitSelect2.value;
-    var newNodeName1 = features[firstDataCol];
-    var newNodeName2 = features[secondDataCol];
-
-    console.log(oldNode.style.left, oldNode.style.top);
-    //create two new nodes with name from data column
-    var leftVal1 = parseInt(oldNode.style.left.slice(0,3)) - 100;
-    createNewNode(event, oldNode.style.top, leftVal1+"px", newNodeName1);
-
-    //create second node with name from dataColumn
-    var leftVal2 = parseInt(oldNode.style.left.slice(0,3)) + 100;
-    createNewNode(event, oldNode.style.top, leftVal2+"px", newNodeName2);
-
-    //add children to each new node
-    for (var i=0; i<children[nodeToSplit].length; i++){
-      var child = children[nodeToSplit][i];
-      connectNodesHelper(newNodeName1, child);
-      connectNodesHelper(newNodeName2, child);
+function splitNodeButton(event) {
+  var prevNodeList = nodes.slice(0);
+  for (var i=0; i<prevNodeList.length; i++){
+    var node = document.getElementById(prevNodeList[i])
+    if (node.getAttribute("data-highlight") == "true"){
+      splitNode(prevNodeList[i]);
     }
-
-    //add parents to each new node
-    for (var j=0; j<parents[nodeToSplit].length; j++){
-      var parent = parents[nodeToSplit][j];
-      connectNodesHelper(parent, newNodeName1);
-      connectNodesHelper(parent, newNodeName2);
-    }
-
-    //delete node to split
-    deleteNode(nodeToSplit);
-
-    document.getElementById("split").removeChild(splitTable);
   }
-
-  splitCol3.appendChild(submitButton);
-  splitRow3.appendChild(splitCol3);
-  splitTable.appendChild(splitRow3);
-
-  document.getElementById("split").appendChild(splitTable);
-
 }
 
 function splitNode(nodeID) {
-  console.log("splitting node!!!", nodeID);
   //get which node to split and which columns for new nodes
   var oldNode = document.getElementById(nodeID);
   newNodeName1 = nodeID+"1";
   newNodeName2 = nodeID+"2";
 
-  console.log("got two new nodes");
-
   //create two new nodes with name from data column
   var leftVal1 = parseInt(oldNode.style.left.slice(0,3)) - 100;
   createNewNode(event, oldNode.style.top, leftVal1+"px", newNodeName1);
-
-  console.log("created first node");
 
   //create second node with name from dataColumn
   var leftVal2 = parseInt(oldNode.style.left.slice(0,3)) + 100;
@@ -963,117 +838,55 @@ function splitNode(nodeID) {
   deleteNode(nodeID);
 }
 
-function createMergeNodeForm() {
-  //create table that will hold the split node information
-  var mergeTable = document.createElement("table");
-  mergeTable.style.position = "absolute";
-  mergeTable.style.top = "630px";
-  mergeTable.style.left = "600px";
-  mergeTable.style.color = "black";
-  mergeTable.style.background = "white";
-
-  //enter two nodes to merge
-  var row1 = document.createElement("tr");
-  var col11 = document.createElement("td");
-  col11.innerHTML = "Enter first node to merge:";
-  row1.appendChild(col11);
-
-  var col12 = document.createElement("td");
-  var mergeForm1 = document.createElement("form");
-  var mergeSelect1 = document.createElement("select");
+function mergeNodeButton(event) {
+  var highlighted = [];
   for (var i=0; i<nodes.length; i++){
-    var mergeOption1 = document.createElement("option");
-    mergeOption1.innerHTML = nodes[i];
-    mergeSelect1.appendChild(mergeOption1);
-  }
-  mergeForm1.appendChild(mergeSelect1);
-  col12.appendChild(mergeForm1);
-  row1.appendChild(col12);
-
-  //enter second node to merge
-  var row2 = document.createElement("tr");
-  var col21 = document.createElement("td");
-  col21.innerHTML = "Enter second node to merge:";
-  row2.appendChild(col21);
-
-  var col22 = document.createElement("td");
-  var mergeForm2 = document.createElement("form");
-  var mergeSelect2 = document.createElement("select");
-  for (var i=0; i<nodes.length; i++){
-    var mergeOption2 = document.createElement("option");
-    mergeOption2.innerHTML = nodes[i];
-    mergeSelect2.appendChild(mergeOption2);
-  }
-  mergeForm2.appendChild(mergeSelect2);
-  col22.appendChild(mergeForm2);
-  row2.appendChild(col22);
-
-  //enter new column number that will be responsible for merge
-  var row3 = document.createElement("tr");
-  var col31 = document.createElement("td");
-  col31.innerHTML = "Choose column of data for merged node:"
-  row3.appendChild(col31);
-
-  var col32 = document.createElement("td");
-  var mergeForm3 = document.createElement("form");
-  var mergeSelect3 = document.createElement("select");
-  for (var i=0; i<features.length; i++){
-    var mergeOption3 = document.createElement("option");
-    mergeOption3.innerHTML = i;
-    mergeSelect3.appendChild(mergeOption3);
-  }
-  mergeForm3.appendChild(mergeSelect3);
-  col32.appendChild(mergeForm3);
-  row3.appendChild(col32);
-
-  var row4 = document.createElement("tr");
-  var col4 = document.createElement("td");
-  var mergeSubmit = document.createElement("button");
-  mergeSubmit.innerHTML = "Submit";
-  mergeSubmit.onclick = function (event) {
-    var firstRemove = mergeSelect1.value;
-    var secondRemove = mergeSelect2.value;
-    var newNodeName = features[mergeSelect3.value];
-
-    var oldNode1 = document.getElementById(firstRemove);
-    var oldNode2 = document.getElementById(secondRemove);
-
-    var top = (parseInt(oldNode1.style.top.slice(0,3))+parseInt(oldNode2.style.top.slice(0,3)))/2 + "px";
-    var left = (parseInt(oldNode1.style.left.slice(0,3))+parseInt(oldNode2.style.left.slice(0,3)))/2 + "px";
-    createNewNode(event, top, left, newNodeName);
-
-    for (var i=0; i<parents[firstRemove].length; i++){
-      var parent1 = parents[firstRemove][i];
-      connectNodesHelper(parent1, newNodeName);
+    var node = document.getElementById(nodes[i]);
+    if (node.getAttribute("data-highlight") == "true"){
+      highlighted.push(nodes[i]);
     }
-    for (var j=0; j<parents[secondRemove].length; j++){
-      var parent2 = parents[secondRemove][j];
-      connectNodesHelper(parent2, newNodeName);
-    }
-    for (var k=0; k<children[firstRemove].length; k++){
-      var child1 = children[firstRemove][k];
-      connectNodesHelper(newNodeName, child1);
-    }
-    for (var l=0; l<children[secondRemove].length; l++){
-      var child2 = children[secondRemove][l];
-      connectNodesHelper(newNodeName, child2);
-    }
- 
-    deleteNode(firstRemove);
-    deleteNode(secondRemove);
-
-    document.getElementById("split").removeChild(mergeTable);
   }
-  col4.appendChild(mergeSubmit);
-  row4.appendChild(col4);
 
-  mergeTable.appendChild(row1);
-  mergeTable.appendChild(row2);
-  mergeTable.appendChild(row3);
-  mergeTable.appendChild(row4);
+  if (highlighted.length > 2){
+    alert("Please only select two nodes to merge");
+    return;
+  } else if (highlighted.length < 2) {
+    alert("Please select at least two nodes to merge");
+    return;
+  } else {
+    mergeNodes(highlighted[0], highlighted[1]);
+  }
+}
 
-  document.getElementById("split").appendChild(mergeTable);
+function mergeNodes(firstNode, secondNode) {
+  var newNodeName = firstNode+"&"+secondNode;
 
+  var oldNode1 = document.getElementById(firstNode);
+  var oldNode2 = document.getElementById(secondNode);
+
+  var top = (parseInt(oldNode1.style.top.slice(0,3))+parseInt(oldNode2.style.top.slice(0,3)))/2 + "px";
+  var left = (parseInt(oldNode1.style.left.slice(0,3))+parseInt(oldNode2.style.left.slice(0,3)))/2 + "px";
+  createNewNode(event, top, left, newNodeName);
+
+  for (var i=0; i<parents[firstNode].length; i++){
+    var parent1 = parents[firstNode][i];
+    connectNodesHelper(parent1, newNodeName);
+  }
+  for (var j=0; j<parents[secondNode].length; j++){
+    var parent2 = parents[secondNode][j];
+    connectNodesHelper(parent2, newNodeName);
+  }
+  for (var k=0; k<children[firstNode].length; k++){
+    var child1 = children[firstNode][k];
+    connectNodesHelper(newNodeName, child1);
+  }
+  for (var l=0; l<children[secondNode].length; l++){
+    var child2 = children[secondNode][l];
+    connectNodesHelper(newNodeName, child2);
+  }
+
+  deleteNode(firstNode);
+  deleteNode(secondNode);
 }
 
 
@@ -1082,7 +895,6 @@ function createMergeNodeForm() {
 ////////////////////////////////////////////////////////////////////////////////
 
 function computeProbabilities(childNode) {
-  console.log("beginning training");
   finalNode = childNode;
 
   function getParentPermutations(parentList){
@@ -1186,7 +998,6 @@ function computeProbabilities(childNode) {
   }
 
   helper(finalNode);
-  console.log("computing", finalNode, probabilities);
 }
 
 function readTestFile() {
@@ -1247,16 +1058,10 @@ function runTests(event) {
   for (var i=0; i<givens.length; i++){
     var givenIndex = features.indexOf(givens[i]);
     setValues[givens[i]] = (dataPoint[givenIndex] == "1");
-    //var node = document.getElementById(givens[i]);
-    //node.innerHTML += "<br />";
-    //node.innerHTML += "<span style='color:red'>"+setValues[givens[i]]+"</span>";
   }
-
-  console.log(probabilities);
 
   //populates setValues dictionary
   function setValue(currentNode) {
-    console.log("current node", currentNode);
     //base case, no parents, set value
     if (parents[currentNode].length == 0){
       if (!(currentNode in setValues)){
@@ -1271,12 +1076,6 @@ function runTests(event) {
         if (currentNode != finalVariable){
           var nodeInfo = document.getElementById(currentNode+"Info");
           nodeInfo.innerHTML = "Probability True: "+probability+"%<br /><span style'color:aqua'>"+setValues[currentNode]+"</span>";
-          /*
-          node.innerHTML += "<br />";
-          node.innerHTML += "Probability True: "+probability+"%";
-          node.innerHTML += "<br />";
-          node.innerHTML += "<span style='color:aqua'>"+setValues[currentNode]+"</span>";
-          */
         }
       } else {
         if (currentNode != finalVariable){
@@ -1354,7 +1153,6 @@ function runTests(event) {
 
   testCounter += 1;
   if (testCounter >= testData.length){
-    console.log("test accuracy", testCorrect/testData.length);
     alert("Finished running tests");
   }
 }
@@ -1386,15 +1184,12 @@ function runAllTests(event) {
 }
 
 function pauseTestingFunc(event) {
-  console.log("activating pause");
   pauseTesting = true;
 }
 
 //used to know if we have finished assigning given true/false values to nodes
 var finishedAssignments = false;
 function getResults(event) {
-
-  console.log("getting results");
 
   //get information about givens from propogation table
   var table = document.getElementById("propTable");
@@ -1424,17 +1219,12 @@ function getResults(event) {
 
   //get the highest unassigned node (to be assigned)
   var highestUnassigned = getHighestUnassignedValue(finalNode);
-  console.log("Got highest unassigned node", highestUnassigned);
 
   //get the probability of the highest unassigned node being true
   var probability_dict = probabilities[highestUnassigned];
   var key = getProbabilitiesKey(highestUnassigned);
-  console.log("dict", probability_dict);
-  console.log("key", key);
   var probability = probability_dict[key];
-  console.log("probability", probability);
   var randomNum = Math.random();
-  console.log(randomNum, probability);
 
   //set the value of the highest unassigned node
   if (randomNum < probability){
@@ -1448,7 +1238,6 @@ function getResults(event) {
   nodeInfo.innerHTML += "Probability = "+probability*100+"%";
   nodeInfo.innerHTML += "<br />";
   nodeInfo.innerHTML += "<span style='color:red'>"+setValues[highestUnassigned]+"</span>";
-  console.log("made it here");
 
 }
 

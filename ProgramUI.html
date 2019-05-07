@@ -108,7 +108,8 @@
 
   <!--To switch to connect mode-->
   <div class="animation">
-  	<button id="ConnectModeButton" style="position: absolute; top: 250px; left: 728px; width: 130px; background: white" onclick="switchConnectMode()">Connect Mode</button>
+  	<button id="ConnectModeButton" style="position: absolute; top: 220px; left: 728px; width: 130px; background: white" onclick="switchConnectMode()">Connect Mode</button>
+  	<button id="DisconnectNodesButton" style="position: absolute; top: 245px; left: 728px; width: 130px;" onclick="disconnectNodesButton()">Disconnect Highlighted Nodes</button>
   </div>
 
   <!--Buttons for when nodes are highlighted-->
@@ -124,8 +125,8 @@
   </div class="animation">
 
   <div id="split" class="animation"> 
-  	<button style="position: absolute; top: 490px; left: 728px; width: 130px;" onclick="createSplitNodeForm()">Split Highlighted Nodes</button>
-  	<button style="position: absolute; top: 535px; left: 728px; width: 130px;" onclick="createMergeNodeForm()">Merge Two Highlighted Nodes</button>
+  	<button style="position: absolute; top: 490px; left: 728px; width: 130px;" onclick="splitNodeButton(event)">Split Highlighted Nodes</button>
+  	<button style="position: absolute; top: 535px; left: 728px; width: 130px;" onclick="mergeNodeButton(event)">Merge Two Highlighted Nodes</button>
   </div>
 
 
