@@ -189,6 +189,7 @@ function createNewNode(event, top, left, name) {
     if (connectMode){
       
     } else {
+      console.log("dragging");
       event.dataTransfer.setData("text", event.target.id);
     }
   }
@@ -197,12 +198,16 @@ function createNewNode(event, top, left, name) {
       - user has added a new node to the board:
           - give node name, info, children, parents, highlighted and delete button attributes 
           - create a new node in the dashboard to eventually be used
-      - user moved a node alread on the board: do nothing
+      - user moved a node alread on the board:
+          - if node was attached to another, move the lines with the moved node
   */
   newNode.ondragend = function(event) {
     if (waitingNode == newNode.id){ //we just dragged and created a real node
       addNodeAttributes(newNode);
       createNewNode(event, top, left, null); //create a waiting node
+    } else {
+      console.log("finished dragging");
+      moveLines(newNode.id);
     }
   }
 
@@ -245,6 +250,7 @@ function createNewNode(event, top, left, name) {
   }
 
   newNode.onclick = function(event) {
+    console.log(event.keyCode);
     if (event.ctrlKey){
       if (newNode.getAttribute("data-highlight") == "false"){
         newNode.setAttribute("data-highlight", "true");
@@ -500,6 +506,22 @@ function drop(event) {
   node.style.top = event.clientY - 25 + 'px';
 }
 
+function moveLines(nodeID) {
+  console.log("moving lines");
+  for (var i=0; i<children[nodeID].length; i++){
+    var child = children[nodeID][i]
+    console.log("child", child);
+    document.body.removeChild(document.getElementById(nodeID+child+"line"));
+    drawSVGLine(nodeID, child);
+  }
+
+  for (var j=0; j<parents[nodeID].length; j++){
+    var parent = parents[nodeID][j];
+    document.body.removeChild(document.getElementById(parent+nodeID+"line"));
+    drawSVGLine(parent, nodeID);
+  }
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 
 
@@ -681,6 +703,18 @@ function connectNodesHelper(parent, child) {
   //add child to the childrens list of parent
   children[parent].push(child);
 
+  drawSVGLine(parent, child);
+
+  for (var i=0; i<divList.length; i++){
+    document.body.removeChild(divList[i]);
+  }
+  divList = [];
+
+  computeProbabilities(child);
+}
+
+function drawSVGLine(parent, child) {
+
   //connect nodes on front-end
   var node1 = document.getElementById(parent);
   var node2 = document.getElementById(child);
@@ -689,14 +723,21 @@ function connectNodesHelper(parent, child) {
   var x2 = node2.offsetLeft, y2 = node2.offsetTop;
 
   var width = Math.abs(x1-x2);
-  var height = Math.abs(y1-y2);
+  var height = Math.abs(50-Math.abs(y1-y2));
 
   var svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
   svg.setAttribute("id", parent+child+"line");
   svg.setAttribute("width", width);
-  svg.setAttribute("height", height-50);
+  svg.setAttribute("height", height);
   svg.style.position = "absolute";
-  svg.style.top = Math.min(y1, y2)+50;
+
+  if (y2 < y1 && y1 < y2+50){
+    svg.style.top = y1;
+  } else if (y1 < y2 && y2 < y1+50){
+    svg.style.top = y2;
+  } else {
+    svg.style.top = Math.min(y1, y2)+50;
+  }
   svg.style.left = Math.min(x1, x2)+65;
   svg.style.stroke = "white";
   svg.zIndex = 1;
@@ -709,20 +750,30 @@ function connectNodesHelper(parent, child) {
     line.setAttribute("x1", 0);
     line.setAttribute("x2", width);
   }
-  line.setAttribute("y1", 0);
-  line.setAttribute("y2", height-50);
+
+  if (y2-y1 < 0){ //child is above parent
+    if (Math.abs(y2-y1) < 50){
+      line.setAttribute("y1", 0)
+      line.setAttribute("y2", height);
+    } else {
+      line.setAttribute("y1", height);
+      line.setAttribute("y2", 0);
+    }
+  } else {
+    if (Math.abs(y2-y1)<50){
+      line.setAttribute("y1", height);
+      line.setAttribute("y2", 0);
+    } else {
+      line.setAttribute("y1", 0);
+      line.setAttribute("y2", height);
+    }
+  }
+
   line.setAttribute("style", "strokeWidth: 4");
   line.setAttribute("style", "marker-end: url(#arrow)");
 
   svg.appendChild(line);
   document.body.appendChild(svg);
-
-  for (var i=0; i<divList.length; i++){
-    document.body.removeChild(divList[i]);
-  }
-  divList = [];
-
-  computeProbabilities(child);
 }
 
 function disconnectNodesButton(event) {
