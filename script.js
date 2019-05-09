@@ -16,9 +16,7 @@ var colorOptions = ["Red", "#OrangeRed", "Teal", "Blue", "Aqua",
 
 //for making connections
 var connectMode = false;
-var drawMode = false;
-var twoNodes = [];
-var divList = [];
+var connectParent = null;
 
 //testing
 var testData = []
@@ -28,6 +26,9 @@ var testCorrect = 0;
 //for propogating results
 var setValues = {}
 var probabilities = {}
+
+//for animate mode
+var animateMode = false;
 
 
 
@@ -149,7 +150,7 @@ function addNodeAttributes(newNode) {
   //create delete button on node
   var deleteButton = document.createElement("button");
   deleteButton.innerHTML = "x"
-  deleteButton.style.zIndex = 1001;
+  deleteButton.style.zIndex = 101;
   deleteButton.style.position = "absolute";
   deleteButton.style.left = "120px";
   deleteButton.style.top = "0px";
@@ -182,12 +183,13 @@ function createNewNode(event, top, left, name) {
   newNode.style.position = "absolute";
   newNode.style.top = top;
   newNode.style.left = left;
+  newNode.style.zIndex = 1000;
 
   //make new node draggable and have functions for what to do when dragging
   newNode.draggable = "true";
   newNode.ondragstart = function drag(event) {
     if (connectMode){
-      
+      alert("Please exit connect mode to move nodes");
     } else {
       console.log("dragging");
       event.dataTransfer.setData("text", event.target.id);
@@ -202,18 +204,24 @@ function createNewNode(event, top, left, name) {
           - if node was attached to another, move the lines with the moved node
   */
   newNode.ondragend = function(event) {
+    if (connectMode){
+      return;
+    }
     if (waitingNode == newNode.id){ //we just dragged and created a real node
       addNodeAttributes(newNode);
       createNewNode(event, top, left, null); //create a waiting node
     } else {
-      console.log("finished dragging");
       moveLines(newNode.id);
     }
   }
 
   //rename node when double clicking
   newNode.ondblclick = function(event) {
-    if (!nodes.includes(newNode.id)){
+    if (!nodes.includes(newNode.id)){//double click on node in dock
+      return;
+    }
+    if (connectMode){
+      alert("Cannot rename in connect mode");
       return;
     }
 
@@ -222,9 +230,11 @@ function createNewNode(event, top, left, name) {
       var inputForm = document.createElement("form");
       var inputSelect = document.createElement("select");
       for (var i=0; i<features.length; i++){
-        var inputOption = document.createElement("option");
-        inputOption.innerHTML = features[i];
-        inputSelect.appendChild(inputOption);
+        if (!nodes.includes(features[i])){
+          var inputOption = document.createElement("option");
+          inputOption.innerHTML = features[i];
+          inputSelect.appendChild(inputOption);
+        }
       }
       inputForm.appendChild(inputSelect);
       var submit = document.createElement("button");
@@ -244,40 +254,35 @@ function createNewNode(event, top, left, name) {
       }
 
       newNode.appendChild(inputForm);
-    } else {
-      splitNode(newNode.id);
-    }
+    } 
   }
 
   newNode.onclick = function(event) {
-    console.log(event.keyCode);
-    if (event.ctrlKey){
-      if (newNode.getAttribute("data-highlight") == "false"){
-        newNode.setAttribute("data-highlight", "true");
-        newNode.style.border = "5px solid white";
+    if (connectMode){
+      if (connectParent == null){
+        newNode.style.border = "5px solid yellow";
+        connectParent = newNode.id;
+        document.getElementById("dropzone").innerHTML = "Select a child";
       } else {
-        newNode.setAttribute("data-highlight", "false");
-        newNode.style.border = "1px solid grey";
+        document.getElementById(connectParent).style.border = "1px solid grey";
+        
+        if (connectParent != newNode.id){
+          connectNodes(connectParent, newNode.id);
+        }
+        connectParent = null;
+        document.getElementById("dropzone").innerHTML = "Select a new parent";
       }
     } else {
-      if (connectMode){
-        if (drawMode){
-
+      if (event.ctrlKey){
+        if (newNode.getAttribute("data-highlight") == "false"){
+          newNode.setAttribute("data-highlight", "true");
+          newNode.style.border = "5px solid white";
         } else {
-          twoNodes.push(newNode.id);
-          drawMode = true;
+          newNode.setAttribute("data-highlight", "false");
+          newNode.style.border = "1px solid grey";
         }
-      }
-    }
-  }
+      } else {
 
-  newNode.onmouseover = function(event) {
-    if (connectMode && drawMode){
-      if (!twoNodes.includes(newNode.id)){
-        twoNodes.push(newNode.id);
-        connectNodesHelper(twoNodes[0], twoNodes[1]);
-        drawMode = false;
-        twoNodes = [];
       }
     }
   }
@@ -374,28 +379,17 @@ function addNodeName(oldID, newID) {
 
   //replace names on get results form if oldID was previously in features
   //or append new name to get results form
-    var resultsOption;
-    var testOption
+    var finalNodeOption;
     if (features.includes(oldID)){
-      resultsOption = document.getElementById("resultOption"+oldID);
-      document.getElementById("resultsForm").removeChild(resultsOption);
-
-      testOption = document.getElementById("testOption"+oldID);
-      document.getElementById("testForm").removeChild(testOption);
+      finalNodeOption = document.getElementById("finalNodeOption"+oldID);
+      document.getElementById("finalNodeForm").removeChild(finalNodeOption);
     } else {
-      resultsOption = document.createElement("option");
-      testOption = document.createElement("option");
+      finalNodeOption = document.createElement("option");
     }
-    resultsOption.setAttribute("value", newID);
-    resultsOption.setAttribute("id", "resultOption"+newID);
-    resultsOption.innerHTML = newID;
-    document.getElementById("resultsForm").appendChild(resultsOption);
-
-    testOption.setAttribute("value", newID);
-    testOption.setAttribute("id", "testOption"+newID);
-    testOption.innerHTML = newID;
-    document.getElementById("testForm").appendChild(testOption);
-
+    finalNodeOption.setAttribute("value", newID);
+    finalNodeOption.setAttribute("id", "finalNodeOption"+newID);
+    finalNodeOption.innerHTML = newID;
+    document.getElementById("finalNodeForm").appendChild(finalNodeOption);
 
     //append new name to propogate results options or replace old name with new name
     var table = document.getElementById("propTable");
@@ -418,6 +412,12 @@ function addNodeName(oldID, newID) {
     var select = document.createElement("select");
     select.setAttribute("id", "propForm"+newID);
 
+    //not given option
+    var notGiven = document.createElement("option");
+    notGiven.setAttribute("value", "Not Given");
+    notGiven.innerHTML = "Not Given";
+    select.appendChild(notGiven);
+
     //create options for the form
     //given true option
     var givenTrue = document.createElement("option");
@@ -430,12 +430,6 @@ function addNodeName(oldID, newID) {
     givenFalse.setAttribute("value", "False");
     givenFalse.innerHTML = "False";
     select.appendChild(givenFalse);
-
-    //not given option
-    var notGiven = document.createElement("option");
-    notGiven.setAttribute("value", "Not Given");
-    notGiven.innerHTML = "Not Given";
-    select.appendChild(notGiven);
 
     newForm.appendChild(select);
     formTD.appendChild(newForm);
@@ -479,16 +473,12 @@ function deleteNode(nodeID) {
   if (features.includes(nodeID)){
 
     //remove name from get results option
-    var resultOption = document.getElementById("resultOption"+nodeID);
-    document.getElementById("resultsForm").removeChild(resultOption);
+    var finalNodeOption = document.getElementById("finalNodeOption"+nodeID);
+    document.getElementById("finalNodeForm").removeChild(finalNodeOption);
 
     //remove from givens option
     var row = document.getElementById("propRow"+nodeID);
     document.getElementById("propTable").removeChild(row);
-
-    //remove name from test option
-    var testOption = document.getElementById("testOption"+nodeID);
-    document.getElementById("testForm").removeChild(testOption);
 
     //remove from probabilities
     delete probabilities[nodeID];
@@ -496,18 +486,19 @@ function deleteNode(nodeID) {
 }
 
 function drop(event) {
-  event.preventDefault();
-  var nodeID = event.dataTransfer.getData("text");
-  var node = document.getElementById(nodeID);
+  if (!connectMode){
+    event.preventDefault();
+    var nodeID = event.dataTransfer.getData("text");
+    var node = document.getElementById(nodeID);
 
-  //TODO fix shifting
-  document.body.appendChild(node);
-  node.style.left = event.clientX - 65 + 'px';
-  node.style.top = event.clientY - 25 + 'px';
+    //TODO fix shifting
+    document.body.appendChild(node);
+    node.style.left = event.clientX - 65 + 'px';
+    node.style.top = event.clientY - 25 + 'px';
+  }
 }
 
 function moveLines(nodeID) {
-  console.log("moving lines");
   for (var i=0; i<children[nodeID].length; i++){
     var child = children[nodeID][i]
     console.log("child", child);
@@ -531,8 +522,14 @@ function moveLines(nodeID) {
 
 //for stopping the animation
 var stopAnimating = false;
+var animateCounter = 0;
+
+var changedSpeed = false;
 
 function animateNodes() {
+  animateMode = true;
+  stopAnimating = false;
+  console.log("beginning animation", animateCounter);
   //checks to make sure data has been uploaded and nodes exist
   if (data.length == 0){
     alert("Please upload data");
@@ -542,43 +539,46 @@ function animateNodes() {
     return;
   }
 
-  //Determine which nodes to animate (which were selected)
-  var nodesToAnimate = [];
-  for (var i=0; i<nodes.length; i++){
-    var node = document.getElementById(nodes[i]);
-    if (node.getAttribute("data-highlight") == "true"){
-      if (!features.includes(nodes[i])){
-        alert("Please only select nodes with proper feature names");
-        return;
-      } else {
-        nodesToAnimate.push(nodes[i]);
-      }
-    }
-  }
-  if (nodesToAnimate.length == 0){
-    alert("Please select or create a node to animate");
-    return;
-  }
-
   //get speed at which to animate nodes
   var slider = document.getElementById("animateSlider");
   var speed = 1000 - (slider.value*10);
   
   //have counter to keep track of data point we're displaying on node animation (RSVP)
   //also used to keep track of how many times we've looped
-  var counter = 0;
 
-  function myloop() {
+  function myloop(speed) {
     setTimeout(function () {
+
+      var new_speed = 1000-(10*document.getElementById("animateSlider").value);
+
+      //make sure the counter is valid
+      if (animateCounter/2 >= data.length){
+        animateCounter = 0;
+      }
+
+      //get nodes to animate
+      var nodesToAnimate = [];
+      for (var i=0; i<nodes.length; i++){
+        var node = document.getElementById(nodes[i]);
+        if (node.getAttribute("data-highlight") == "true"){
+          if (!features.includes(nodes[i])){
+            alert("Please only select nodes with proper feature names");
+            return;
+          } else {
+            nodesToAnimate.push(nodes[i]);
+          }
+        }
+      }
+      console.log("nodes to animate", nodesToAnimate);
 
       //determine if all nodes are lit for this particular data point
       var allLit = true;
       for (var i=0; i<nodesToAnimate.length; i++){
         var animatedNode = nodesToAnimate[i];
-        if (counter%2 == 1){
+        if (animateCounter%2 == 1){
           continue;
         } else {
-          if (data[counter/2][features.indexOf(animatedNode)] != "1"){
+          if (data[animateCounter/2][features.indexOf(animatedNode)] != "1"){
             allLit = false;
           }
           //console.log(animatedNode, data[counter/2][features.indexOf(animatedNode)], allLit);
@@ -592,13 +592,13 @@ function animateNodes() {
         var dataIndex = features.indexOf(nodeToAnimate);
 
         //only change the color of the node every other loop so that we can get the blinking effect
-        if (counter%2 == 1){
+        if (animateCounter%2 == 1){
           elem.style.color = "white";
         } 
 
         //change color of node if data value is true (==1)
         else {
-          if (data[counter/2][dataIndex] == "1"){
+          if (data[animateCounter/2][dataIndex] == "1"){
             if (allLit){
               elem.style.color = "lawnGreen";
             } else {
@@ -610,21 +610,26 @@ function animateNodes() {
         }
 
       }
-      counter++;
+      animateCounter++;
 
       //used to keep track of how far along we are in the animation process
-      if (counter%2 == 0){
+      if (animateCounter%2 == 0){
         //document.getElementById('completionRate').innerHTML = "Animation is " + counter/2 + " % finished.";
-        document.getElementById('animProgressBar').style.width = (130*counter)/(2*data.length)+"px"; 
-        document.getElementById('animProgressBar').innerHTML = Math.round((100*counter)/(2*data.length))+"%";
+        document.getElementById('animProgressBar').style.width = (130*animateCounter)/(2*data.length)+"px"; 
+        document.getElementById('animProgressBar').innerHTML = Math.round((100*animateCounter)/(2*data.length))+"%";
       }
 
       //check to see if we should stop the animation process
-      if (!stopAnimating && counter/2 < data.length){
-          myloop();
+      if (nodesToAnimate.length == 0){
+        alert("Please select or create a node to animate. Then restart animation");
+        animateMode = false;
+      } else if (!stopAnimating && animateCounter/2 < data.length){
+          myloop(new_speed);
       } 
       //if stopping the animation process, convert all nodes back to their original white color
       else {
+        console.log("finished", stopAnimating);
+        animateMode = false;
         for (var j=0; j<nodesToAnimate.length; j++){
           var nodeElem = document.getElementById(nodesToAnimate[j]);
           nodeElem.style.color = "white";
@@ -633,10 +638,7 @@ function animateNodes() {
     }, speed)
   }
 
-  myloop();
-  //once we've stopped animating, reset the boolean back to false
-  //so it could be changed to true again when we start animating again
-  stopAnimating = false;
+  myloop(speed);
 }
 
 //Once the user has selected a speed at which to animate nodes, display this speed
@@ -647,55 +649,52 @@ function displayAnimationSpeed() {
 
 //Stop the animation process from happening by changing the stopAnimating boolean
 function stopAnimation() {
+  animateMode = false;
   console.log("No animating");
   stopAnimating = true;
 }
 
 function switchConnectMode() {
   if (connectMode){
+    console.log("in connect mode");
+    document.getElementById("dropzone").innerHTML = "";
     for (var i=0; i<nodes.length; i++){
       document.getElementById(nodes[i]).draggable = "true";
     }
     connectMode = false;
+    if (connectParent != null){
+      document.getElementById(connectParent).style.border = "1px solid grey";
+      connectParent = null;
+    }
     document.getElementById("ConnectModeButton").style.background = "white";
-    document.getElementById("dropzone").removeEventListener("mousemove", draw);
   } else {
     if (nodes.length < 2){
       alert("Must have at least two nodes to enter connect mode");
       return;
     }
+
+    if (animateMode){
+      alert("Cannot enter connect mode while still animating. Please stop animation.");
+      return;
+    }
+
+    document.getElementById("dropzone").innerHTML = "Select a Parent";
+
     for (var i=0; i<nodes.length; i++){
       document.getElementById(nodes[i]).draggable = "false";
     }
-    document.getElementById("dropzone").addEventListener("mousemove", draw);
     connectMode = true;
     document.getElementById("ConnectModeButton").style.background = "grey";
   }
 }
 
 
-var draw = function(event) {
-  drawConnectLine(event);
-}
-
-//Draws the pixels that make up the line which will connect two nodes
-function drawConnectLine(event) {
-  if (drawMode){
-    var div = document.createElement("div");
-    div.style.position = "absolute";
-    div.style.width = "3px";
-    div.style.height = "3px";
-    div.style.background = "white";
-    var x = event.clientX;
-    var y = event.clientY;
-    div.style.top = y+"px";
-    div.style.left = x+"px";
-    divList.push(div);
-    document.body.appendChild(div);
+function connectNodes(parent, child) {
+  var lineExists = document.getElementById(parent+child+"line");
+  if (lineExists != null){
+    console.log("connection already exists");
+    return;
   }
-}
-
-function connectNodesHelper(parent, child) {
 
   //add parent to the parents list of child
   parents[child].push(parent);
@@ -705,12 +704,9 @@ function connectNodesHelper(parent, child) {
 
   drawSVGLine(parent, child);
 
-  for (var i=0; i<divList.length; i++){
-    document.body.removeChild(divList[i]);
+  if (features.includes(child)){
+    computeProbabilities(child);
   }
-  divList = [];
-
-  computeProbabilities(child);
 }
 
 function drawSVGLine(parent, child) {
@@ -740,7 +736,7 @@ function drawSVGLine(parent, child) {
   }
   svg.style.left = Math.min(x1, x2)+65;
   svg.style.stroke = "white";
-  svg.zIndex = 1;
+  svg.style.zIndex = 1;
 
   var line = document.createElementNS("http://www.w3.org/2000/svg", "line");
   if (x1 > x2){
@@ -771,6 +767,8 @@ function drawSVGLine(parent, child) {
 
   line.setAttribute("style", "strokeWidth: 4");
   line.setAttribute("style", "marker-end: url(#arrow)");
+  line.style.zIndex = 1;
+
 
   svg.appendChild(line);
   document.body.appendChild(svg);
@@ -879,15 +877,15 @@ function splitNode(nodeID) {
   //add children to each new node
   for (var i=0; i<children[nodeID].length; i++){
     var child = children[nodeID][i];
-    connectNodesHelper(newNodeName1, child);
-    connectNodesHelper(newNodeName2, child);
+    connectNodes(newNodeName1, child);
+    connectNodes(newNodeName2, child);
   }
 
   //add parents to each new node
   for (var j=0; j<parents[nodeID].length; j++){
     var parent = parents[nodeID][j];
-    connectNodesHelper(parent, newNodeName1);
-    connectNodesHelper(parent, newNodeName2);
+    connectNodes(parent, newNodeName1);
+    connectNodes(parent, newNodeName2);
   }
 
   //delete node to split
@@ -936,19 +934,19 @@ function mergeNodes(firstNode, secondNode) {
 
   for (var i=0; i<parents[firstNode].length; i++){
     var parent1 = parents[firstNode][i];
-    connectNodesHelper(parent1, newNodeName);
+    connectNodes(parent1, newNodeName);
   }
   for (var j=0; j<parents[secondNode].length; j++){
     var parent2 = parents[secondNode][j];
-    connectNodesHelper(parent2, newNodeName);
+    connectNodes(parent2, newNodeName);
   }
   for (var k=0; k<children[firstNode].length; k++){
     var child1 = children[firstNode][k];
-    connectNodesHelper(newNodeName, child1);
+    connectNodes(newNodeName, child1);
   }
   for (var l=0; l<children[secondNode].length; l++){
     var child2 = children[secondNode][l];
-    connectNodesHelper(newNodeName, child2);
+    connectNodes(newNodeName, child2);
   }
 
   deleteNode(firstNode);
@@ -1122,7 +1120,7 @@ function runTests(event) {
     testCorrect = 0;
   }
 
-  var finalVariable = document.getElementById("testForm").value;
+  var finalVariable = document.getElementById("finalNodeForm").value;
   var dataPoint = testData[testCounter];
 
   //TODO givens should be more than just the parents, givens should be every node
@@ -1266,8 +1264,8 @@ function getResults(event) {
 
   //get information about givens from propogation table
   var table = document.getElementById("propTable");
+  var numAssigned = 0;
   if (!finishedAssignments){
-    var numAssigned = 0;
     for (var i=0; i<nodes.length; i++){
       //get form value
       var propForm = document.getElementById("propForm"+nodes[i]);
@@ -1281,37 +1279,34 @@ function getResults(event) {
         firstNodeInfo.innerHTML += "<span style='color:aqua'>"+propFormVal+"</span>";
       }
     }
-    if (numAssigned == 0){
-        alert("No set values to assign. Please click \"Get Results\" again.");
-    }
     finishedAssignments = true;
-    return;
+  } 
+
+  if (numAssigned == 0){
+    var finalNode = document.getElementById("finalNodeForm").value;
+
+    //get the highest unassigned node (to be assigned)
+    var highestUnassigned = getHighestUnassignedValue(finalNode);
+
+    //get the probability of the highest unassigned node being true
+    var probability_dict = probabilities[highestUnassigned];
+    var key = getProbabilitiesKey(highestUnassigned);
+    var probability = probability_dict[key];
+    var randomNum = Math.random();
+
+    //set the value of the highest unassigned node
+    if (randomNum < probability){
+      setValues[highestUnassigned] = "True";
+    } else {
+      setValues[highestUnassigned] = "False";
+    }
+
+    //write the value to the highest unassigned node
+    var nodeInfo = document.getElementById(highestUnassigned+"Info");
+    nodeInfo.innerHTML += "Probability = "+Math.round(probability*100)+"%";
+    nodeInfo.innerHTML += "<br />";
+    nodeInfo.innerHTML += "<span style='color:red'>"+setValues[highestUnassigned]+"</span>";
   }
-
-  var finalNode = document.getElementById("resultsForm").value;
-
-  //get the highest unassigned node (to be assigned)
-  var highestUnassigned = getHighestUnassignedValue(finalNode);
-
-  //get the probability of the highest unassigned node being true
-  var probability_dict = probabilities[highestUnassigned];
-  var key = getProbabilitiesKey(highestUnassigned);
-  var probability = probability_dict[key];
-  var randomNum = Math.random();
-
-  //set the value of the highest unassigned node
-  if (randomNum < probability){
-    setValues[highestUnassigned] = "True";
-  } else {
-    setValues[highestUnassigned] = "False";
-  }
-
-  //write the value to the highest unassigned node
-  var nodeInfo = document.getElementById(highestUnassigned+"Info");
-  nodeInfo.innerHTML += "Probability = "+probability*100+"%";
-  nodeInfo.innerHTML += "<br />";
-  nodeInfo.innerHTML += "<span style='color:red'>"+setValues[highestUnassigned]+"</span>";
-
 }
 
 function getHighestUnassignedValue(bottomNode) {

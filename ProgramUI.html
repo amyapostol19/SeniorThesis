@@ -58,33 +58,24 @@
 
 
   		<!--Create user interface for testing results-->
-  		<td class="animation" style="left: 900px; top: 100px; position: absolute;">
-  			<div style="font-size: 130%"><b>TESTING</b></div>
-  			<div>Select givens:</div>
+  		<td><div class="animation" style="font-size: 130%; position: absolute; top: 50px; left: 900px"><b>TESTING</b></div></td>
+
+  		<td class="animation" style="padding: 10px; width: 300px; top: 400px; left: 880px; position: absolute; border: 2px solid white">
+  			<div style="padding-bottom: 5px; font-size: 115%;"><i>Test with Manually Inputted Values</i></div>
+  			<div>Select values:</div>
   			<table id="propTable"></table>
-  			<div style="padding-top: 10px"></div>
-  			<div>Choose Result Node</div>
-  			<form>
-  				<select id="resultsForm"></select>
-  			</form>
-  			<button id="PropogateButton" onclick="getResults(event)">Get Results! (Stepper)</button>
+  			<button id="PropogateButton" onclick="getResults(event)">Assign Values (Stepper)</button>
   			<button onclick="clearResults()">Clear Results</button>
   		</td>
 
   		<!--Create buttons for testing-->
-  		<td class="animation" style="top: 400px; left: 900px; position: absolute;">
-  			<div>Computing Test Accuracy</div>
+  		<td class="animation" style="left: 880px; width: 300px; position: absolute; border: 2px solid white; padding: 10px">
+  			<div style="padding-bottom: 5px; font-size: 115%"><i>Test with Testing Data (Computes Test Accuracy)</i></div>
   			<input type="file" name="file" id="testFiles" />
   			<div style="padding-top: 10px"></div>
   			<button onclick="readTestFile()">Upload Test File</button>
   			<div style="display: none;" id="TestLoaded">Loaded!</div>
-  			<div style="padding-top: 10px"></div>
-  			<div style="padding-bottom: 10px">
-  				<div>Select final Node:</div>
-  				<form>
-  					<select id="testForm"></select>
-  				</form>
-  			</div>
+  			
   			<button onclick="runTests(event)">Single Step Through Tests</button>
   			<div style="padding-top: 10px"></div>
   			<button onclick="runAllTests(event)">Run All Tests</button>
@@ -100,6 +91,13 @@
   				<div id="progressBar" style="width: 0px; background-color: green; height: 20px;">0%</div>
   			</div>
   			<div id="TestAccuracy" style="padding-top: 5px"></div>
+  		</td>
+
+  		<td class="animation">
+  			<div style="position: absolute; top: 55px; left: 1020px">Select final Node:</div>
+  			<form style="position: absolute; top: 55px; left: 1150px">
+  				<select id="finalNodeForm"></select>
+  			</form>
   		</td>
 
   </table>
