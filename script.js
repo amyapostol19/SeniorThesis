@@ -739,38 +739,83 @@ function drawSVGLine(parent, child) {
   svg.style.zIndex = 1;
 
   var line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+  var arrow1 = document.createElementNS("http://www.w3.org/2000/svg", "line"); 
+  var arrow2 = document.createElementNS("http://www.w3.org/2000/svg", "line"); 
   if (x1 > x2){
     line.setAttribute("x1", width);
     line.setAttribute("x2", 0);
+
+    arrow1.setAttribute("x1", 0);
+    arrow2.setAttribute("x1", 0);
+
+    arrow1.setAttribute("x2", 10);
+    arrow2.setAttribute("x2", 10);
   } else {
     line.setAttribute("x1", 0);
     line.setAttribute("x2", width);
+
+    arrow1.setAttribute("x1", width);
+    arrow2.setAttribute("x1", width);
+
+    arrow1.setAttribute("x2", width-10);
+    arrow2.setAttribute("x2", width-10);
   }
 
   if (y2-y1 < 0){ //child is above parent
     if (Math.abs(y2-y1) < 50){
       line.setAttribute("y1", 0)
       line.setAttribute("y2", height);
+
+      arrow1.setAttribute("y1", height);
+      arrow2.setAttribute("y1", height);
+
+      arrow1.setAttribute("y2", height-10);
+      arrow2.setAttribute("y2", height-10);
     } else {
       line.setAttribute("y1", height);
       line.setAttribute("y2", 0);
+
+      arrow1.setAttribute("y1", 0);
+      arrow2.setAttribute("y1", 0);
+
+      arrow1.setAttribute("y2", 10);
+      arrow2.setAttribute("y2", 10);
     }
   } else {
     if (Math.abs(y2-y1)<50){
       line.setAttribute("y1", height);
       line.setAttribute("y2", 0);
+
+      arrow1.setAttribute("y1", 0);
+      arrow2.setAttribute("y1", 0);
+
+      arrow1.setAttribute("y2", 10);
+      arrow2.setAttribute("y2", 10);
     } else {
       line.setAttribute("y1", 0);
       line.setAttribute("y2", height);
+
+      arrow1.setAttribute("y1", height);
+      arrow2.setAttribute("y1", height);
+
+      arrow1.setAttribute("y2", height-10);
+      arrow2.setAttribute("y2", height-10);
     }
   }
 
   line.setAttribute("style", "strokeWidth: 4");
-  line.setAttribute("style", "marker-end: url(#arrow)");
   line.style.zIndex = 1;
+
+  arrow1.setAttribute("style", "strokeWidth: 4");
+  arrow1.style.zIndex = 1;
+
+  arrow2.setAttribute("style", "strokeWidth: 4");
+  arrow2.style.zIndex = 1;
 
 
   svg.appendChild(line);
+  svg.appendChild(arrow1);
+  svg.appendChild(arrow2);
   document.body.appendChild(svg);
 }
 
@@ -1234,15 +1279,16 @@ function runAllTests(event) {
     return;
   }
 
-  var speed = 2000 - document.getElementById("testSlider").value*20;
+  var speed = 1500 - document.getElementById("testSlider").value*15;
 
   pauseTesting = false;
-  function totalloop() {
+  function totalloop(speed) {
     setTimeout(function () {
       if (pauseTesting){
       } else if ((testCounter < testData.length) && !pauseTesting){
         runTests(event);
-        totalloop();
+        var new_speed = 1500-document.getElementById("testSlider").value*15;
+        totalloop(new_speed);
       } else {
         testCounter = 0;
         testCorrect = 0;
@@ -1250,7 +1296,7 @@ function runAllTests(event) {
     }, speed)
   }
 
-  totalloop();
+  totalloop(speed);
   return;
 }
 
