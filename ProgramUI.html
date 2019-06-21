@@ -50,11 +50,13 @@
 
   <h1>VISUALearning: Bayes Net Debugger</h1>
 
+  <div id="dropzone"></div>
+  <div style="left: 722px; width: 140px; height: 500px; border: 1px solid white; position: absolute;"></div>
+
+  <!--Table for testing modules and dropzone module-->
   <table>
   	<tr>
   		<!--Create the zone where users can build their bayes net graph -->
-  		<td><div id="dropzone"></div></td>
-  		<td><div style="left: 722px; width: 140px; height: 500px; border: 1px solid white; position: absolute;"></div></td>
 
 
   		<!--Create user interface for testing results-->
@@ -62,10 +64,8 @@
 
   		<td class="animation" style="padding: 10px; width: 300px; top: 400px; left: 880px; position: absolute; border: 2px solid white">
   			<div style="padding-bottom: 5px; font-size: 115%;"><i>Test with Manually Inputted Values</i></div>
-  			<div>Select values:</div>
-  			<table id="propTable"></table>
-  			<button id="PropogateButton" onclick="getResults(event)">Assign Values (Stepper)</button>
-  			<button onclick="clearResults()">Clear Results</button>
+  			<button id="PropogateButton" onclick="getResults(event)">Assign Node Values</button>
+  			<button onclick="clearResults()">Clear Values</button>
   		</td>
 
   		<!--Create buttons for testing-->
@@ -93,6 +93,7 @@
   			<div id="TestAccuracy" style="padding-top: 5px"></div>
   		</td>
 
+  		<!--Create form for selecting final node-->
   		<td class="animation">
   			<div style="position: absolute; top: 55px; left: 1020px">Select final Node:</div>
   			<form style="position: absolute; top: 55px; left: 1150px">

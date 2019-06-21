@@ -36,25 +36,6 @@ var animateMode = false;
 ///////////////Section 1: Uploading training Data///////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 
-//event handler for when the user selects a file to upload
-function handleFileSelect(evt) {
-    var files = evt.target.files; // FileList object
-
-    // files is a FileList of File objects. List some properties.
-    var output = [];
-    for (var i = 0, f; f = files[i]; i++) {
-      output.push('<li><strong>', escape(f.name), '</strong> (', f.type || 'n/a', ') - ',
-                  f.size, ' bytes, last modified: ',
-                  f.lastModifiedDate ? f.lastModifiedDate.toLocaleDateString() : 'n/a',
-                  '</li>');
-
-      var reader = new FileReader();
-
-    }
-}
-
-//add event listener
-document.getElementById('files').addEventListener('change', handleFileSelect, false);
 
 //read training data file that was uploaded and populate data structures in script.js
 function readDataFile() {
@@ -133,11 +114,13 @@ function addNodeAttributes(newNode) {
   var nameElem = document.createElement("div");
   nameElem.innerHTML = newNode.id;
   nameElem.id = newNode.id+"Name";
+  nameElem.style.zIndex = 200;
   newNode.appendChild(nameElem);
 
   //create nodeInfo div and add it to node
   var nodeInfo = document.createElement("div");
   nodeInfo.id = newNode.id+"Info";
+  nodeInfo.style.zIndex = 200;
   newNode.appendChild(nodeInfo);
 
   //add node to parents dictionary and childrens dictionary
@@ -221,39 +204,38 @@ function createNewNode(event, top, left, name) {
       return;
     }
     if (connectMode){
-      alert("Cannot rename in connect mode");
+      alert("Cannot rename or set value in connect mode");
       return;
     }
 
     if (newNode.getAttribute("data-highlight") == "false"){
       //create input form for user to write in node name
-      var inputForm = document.createElement("form");
-      var inputSelect = document.createElement("select");
-      for (var i=0; i<features.length; i++){
-        if (!nodes.includes(features[i])){
-          var inputOption = document.createElement("option");
-          inputOption.innerHTML = features[i];
-          inputSelect.appendChild(inputOption);
-        }
+      var inputForm = createDropdownForm(newNode.id+"Name", features);
+      var nameSubmit = document.createElement("button");
+      nameSubmit.innerHTML = "Submit";
+      inputForm.appendChild(nameSubmit);
+
+      nameSubmit.onclick = function(argument) {
+        var nodeName = document.getElementById(newNode.id+"NameSelect").value;
+        document.getElementById(newNode.id+"Name").removeChild(inputForm);
+
+        addNodeName(newNode.id, nodeName);
       }
-      inputForm.appendChild(inputSelect);
+
+      document.getElementById(newNode.id+"Name").appendChild(inputForm);
+      //newNode.appendChild(inputForm);
+    } else { //if highlighted, double click to manually assign a value
+      var valueForm = createDropdownForm(newNode.id+"Value", [" ", "True", "False"]);
+      var nodeInfo = document.getElementById(newNode.id+"Info");
       var submit = document.createElement("button");
       submit.innerHTML = "Submit";
-      inputForm.appendChild(submit);
+      valueForm.appendChild(submit);
       submit.onclick = function(argument) {
-        var nodeName = inputSelect.value;
-        if (!features.includes(nodeName)){
-          alert("Invalid node name, try again");
-        } else {
-          //keep this not in the add node name function
-          newNode.removeChild(inputForm);
-
-          addNodeName(newNode.id, nodeName);
-        }
-        return false;
+        nodeInfo.innerHTML = document.getElementById(newNode.id+"ValueSelect").value;
+        setValues[newNode.id] = nodeInfo.innerHTML;
+        console.log("set values", setValues);
       }
-
-      newNode.appendChild(inputForm);
+      nodeInfo.appendChild(valueForm);
     } 
   }
 
@@ -276,7 +258,7 @@ function createNewNode(event, top, left, name) {
       if (event.ctrlKey){
         if (newNode.getAttribute("data-highlight") == "false"){
           newNode.setAttribute("data-highlight", "true");
-          newNode.style.border = "5px solid white";
+          newNode.style.border = "5px double white";
         } else {
           newNode.setAttribute("data-highlight", "false");
           newNode.style.border = "1px solid grey";
@@ -379,6 +361,8 @@ function addNodeName(oldID, newID) {
 
   //replace names on get results form if oldID was previously in features
   //or append new name to get results form
+
+    //add node name to final node option form
     var finalNodeOption;
     if (features.includes(oldID)){
       finalNodeOption = document.getElementById("finalNodeOption"+oldID);
@@ -390,54 +374,6 @@ function addNodeName(oldID, newID) {
     finalNodeOption.setAttribute("id", "finalNodeOption"+newID);
     finalNodeOption.innerHTML = newID;
     document.getElementById("finalNodeForm").appendChild(finalNodeOption);
-
-    //append new name to propogate results options or replace old name with new name
-    var table = document.getElementById("propTable");
-    var row;
-    if (features.includes(oldID)){
-      row = document.getElementById("propRow"+oldID);
-      table.removeChild(row);
-    }
-    row = document.createElement("tr");
-    row.setAttribute("id", "propRow"+newID);
-
-    //create first element in row
-    var tag = document.createElement("td");
-    tag.style.width = "160px";
-    tag.innerHTML = newID;
-
-    //create given form in row
-    var formTD = document.createElement("td");
-    var newForm = document.createElement("form");
-    var select = document.createElement("select");
-    select.setAttribute("id", "propForm"+newID);
-
-    //not given option
-    var notGiven = document.createElement("option");
-    notGiven.setAttribute("value", "Not Given");
-    notGiven.innerHTML = "Not Given";
-    select.appendChild(notGiven);
-
-    //create options for the form
-    //given true option
-    var givenTrue = document.createElement("option");
-    givenTrue.setAttribute("value", "True");
-    givenTrue.innerHTML = "True";
-    select.appendChild(givenTrue);
-
-    //given false option
-    var givenFalse = document.createElement("option");
-    givenFalse.setAttribute("value", "False");
-    givenFalse.innerHTML = "False";
-    select.appendChild(givenFalse);
-
-    newForm.appendChild(select);
-    formTD.appendChild(newForm);
-
-    //add final appends
-    row.appendChild(tag);
-    row.appendChild(formTD);
-    table.appendChild(row);
   }
   
 }
@@ -475,10 +411,6 @@ function deleteNode(nodeID) {
     //remove name from get results option
     var finalNodeOption = document.getElementById("finalNodeOption"+nodeID);
     document.getElementById("finalNodeForm").removeChild(finalNodeOption);
-
-    //remove from givens option
-    var row = document.getElementById("propRow"+nodeID);
-    document.getElementById("propTable").removeChild(row);
 
     //remove from probabilities
     delete probabilities[nodeID];
@@ -656,7 +588,6 @@ function stopAnimation() {
 
 function switchConnectMode() {
   if (connectMode){
-    console.log("in connect mode");
     document.getElementById("dropzone").innerHTML = "";
     for (var i=0; i<nodes.length; i++){
       document.getElementById(nodes[i]).draggable = "true";
@@ -676,6 +607,14 @@ function switchConnectMode() {
     if (animateMode){
       alert("Cannot enter connect mode while still animating. Please stop animation.");
       return;
+    }
+
+    for (var i=0; i<nodes.length; i++){
+      var highlighted = document.getElementById(nodes[i]).getAttribute("data-highlight");
+      if (highlighted == "true"){
+        alert("Please unhighlight all nodes.");
+        return;
+      }
     }
 
     document.getElementById("dropzone").innerHTML = "Select a Parent";
@@ -1045,6 +984,7 @@ function computeProbabilities(childNode) {
 
   function helper(currentNode) {
     var validParents = [];
+    console.log(parents[currentNode]);
     for (var i=0; i<parents[currentNode].length; i++){
       if (features.includes(parents[currentNode][i])){
         validParents.push(parents[currentNode][i]);
@@ -1148,13 +1088,13 @@ var pauseTesting = false;
 function runTests(event) {
   if (testData.length == 0){
     alert("Please upload test data");
-    return;
+    return false;
   }
 
   for (var i=0; i<nodes.length; i++){
     if (!features.includes(nodes[i])){
       alert("Not all nodes are named correctly. Please rename nodes to feature names");
-      return;
+      return false;
     }
   }
 
@@ -1268,9 +1208,8 @@ function runTests(event) {
 
 
   testCounter += 1;
-  if (testCounter >= testData.length){
-    alert("Finished running tests");
-  }
+  
+  return true;
 }
 
 function runAllTests(event) {
@@ -1286,9 +1225,11 @@ function runAllTests(event) {
     setTimeout(function () {
       if (pauseTesting){
       } else if ((testCounter < testData.length) && !pauseTesting){
-        runTests(event);
+        var keepRunning = runTests(event);
         var new_speed = 1500-document.getElementById("testSlider").value*15;
-        totalloop(new_speed);
+        if (keepRunning){
+          totalloop(new_speed);
+        }
       } else {
         testCounter = 0;
         testCorrect = 0;
@@ -1304,55 +1245,32 @@ function pauseTestingFunc(event) {
   pauseTesting = true;
 }
 
-//used to know if we have finished assigning given true/false values to nodes
-var finishedAssignments = false;
 function getResults(event) {
 
-  //get information about givens from propogation table
-  var table = document.getElementById("propTable");
-  var numAssigned = 0;
-  if (!finishedAssignments){
-    for (var i=0; i<nodes.length; i++){
-      //get form value
-      var propForm = document.getElementById("propForm"+nodes[i]);
-      var propFormVal = propForm.value;
-      setValues[nodes[i]] = propFormVal;
+  var finalNode = document.getElementById("finalNodeForm").value;
 
-      //set the value of the node if it is true or false
-      if (propFormVal != "Not Given"){
-        numAssigned += 1;
-        var firstNodeInfo = document.getElementById(nodes[i]+"Info");
-        firstNodeInfo.innerHTML += "<span style='color:aqua'>"+propFormVal+"</span>";
-      }
-    }
-    finishedAssignments = true;
-  } 
+  //get the highest unassigned node (to be assigned)
+  var highestUnassigned = getHighestUnassignedValue(finalNode);
+  console.log(highestUnassigned);
 
-  if (numAssigned == 0){
-    var finalNode = document.getElementById("finalNodeForm").value;
+  //get the probability of the highest unassigned node being true
+  var probability_dict = probabilities[highestUnassigned];
+  var key = getProbabilitiesKey(highestUnassigned);
+  var probability = probability_dict[key];
+  var randomNum = Math.random();
 
-    //get the highest unassigned node (to be assigned)
-    var highestUnassigned = getHighestUnassignedValue(finalNode);
-
-    //get the probability of the highest unassigned node being true
-    var probability_dict = probabilities[highestUnassigned];
-    var key = getProbabilitiesKey(highestUnassigned);
-    var probability = probability_dict[key];
-    var randomNum = Math.random();
-
-    //set the value of the highest unassigned node
-    if (randomNum < probability){
-      setValues[highestUnassigned] = "True";
-    } else {
-      setValues[highestUnassigned] = "False";
-    }
-
-    //write the value to the highest unassigned node
-    var nodeInfo = document.getElementById(highestUnassigned+"Info");
-    nodeInfo.innerHTML += "Probability = "+Math.round(probability*100)+"%";
-    nodeInfo.innerHTML += "<br />";
-    nodeInfo.innerHTML += "<span style='color:red'>"+setValues[highestUnassigned]+"</span>";
+  //set the value of the highest unassigned node
+  if (randomNum < probability){
+    setValues[highestUnassigned] = "True";
+  } else {
+    setValues[highestUnassigned] = "False";
   }
+
+  //write the value to the highest unassigned node
+  var nodeInfo = document.getElementById(highestUnassigned+"Info");
+  nodeInfo.innerHTML += "Probability = "+Math.round(probability*100)+"%";
+  nodeInfo.innerHTML += "<br />";
+  nodeInfo.innerHTML += "<span style='color:red'>"+setValues[highestUnassigned]+"</span>";
 }
 
 function getHighestUnassignedValue(bottomNode) {
@@ -1368,7 +1286,7 @@ function getHighestUnassignedValue(bottomNode) {
     } else {
       for (var j=0; j<pars.length; j++){
         var parent = pars[j];
-        if (setValues[parent] == "Not Given"){
+        if (setValues[parent] == " " || !(parent in setValues)){
           keepLooping = true;
           highestUnassigned = parent;
         }
@@ -1407,6 +1325,7 @@ function getProbabilitiesKey(nodeName) {
   }
 }
 
+//TODO should set all node values to be blank
 function clearResults() {
   finishedAssignments = false;
   setValues = {};
@@ -1415,4 +1334,22 @@ function clearResults() {
     document.getElementById(nodes[i]+"Name").style.color = "white";
     document.getElementById(nodes[i]+"Info").innerHTML = "";
   }
+}
+
+////////////////////////////////////////////////////////////////////////////
+/////////////////Section 6: Universal Helper Functions//////////////////////
+////////////////////////////////////////////////////////////////////////////
+
+function createDropdownForm(formID, options) {
+  var form = document.createElement("form");
+  form.id = formID+"Form";
+  var select = document.createElement("select");
+  select.id = formID+"Select";
+  for (var i=0; i<options.length; i++){
+    var option = document.createElement("option");
+    option.innerHTML = options[i];
+    select.appendChild(option);
+  }
+  form.appendChild(select);
+  return form;
 }
