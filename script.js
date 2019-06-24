@@ -12,7 +12,8 @@ var features = []
 var data = []
 var colors = {}
 var colorOptions = ["Red", "#OrangeRed", "Teal", "Blue", "Aqua",
- "Fuchsia", "#FF1493", "MistyRose"]
+ "Fuchsia", "DeepPink", "BlueViolet", "Brown", "Chocolate",
+ "Maroon", "Salmon"]
 
 //for making connections
 var connectMode = false;
@@ -48,8 +49,6 @@ function readDataFile() {
   }
 
   var file = files[0];
-  var start = 0;
-  var stop = file.size -1;
 
   var reader = new FileReader();
 
@@ -61,7 +60,7 @@ function readDataFile() {
       //populate list of features
       features = info[0].slice(0,-1).split(',');
 
-      //populate colors dictionary
+      //populate colors dictionary. Used to animate nodes with specific color
       for (var j=0; j<features.length; j++){
         colors[features[j]] = generateRandomColor(); 
       }
@@ -74,10 +73,10 @@ function readDataFile() {
       
       document.getElementById('byte_range').textContent = "Data Successfully Loaded";
 
-      //make visible all elements that are a part of the animation class
-      var animations = document.getElementsByClassName("animation");
-      for (var i=0; i<animations.length; i++){
-        animations[i].style.display = "block";
+      //make visible all elements that are a part of the functions class
+      var functions = document.getElementsByClassName("functions");
+      for (var i=0; i<functions.length; i++){
+        functions[i].style.display = "block";
       }
 
       //create initial node that will be dragged
@@ -86,11 +85,13 @@ function readDataFile() {
   };
 
   //get parts of the file to read and read those parts
-  var blob = file.slice(start, stop+1);
-  reader.readAsBinaryString(blob);
+  var information = file.slice(0, file.size);
+  reader.readAsBinaryString(information);
 }
 
 /////////////////////Helper Functions for reading data file/////////////////////
+
+//Used to match a color to a feature. Colors are used when animating nodes
 function generateRandomColor() {
   var randomIndex = Math.floor(Math.random()*colorOptions.length);
   color = colorOptions[randomIndex];
@@ -106,10 +107,150 @@ function generateRandomColor() {
 ////////////////////////////////////////////////////////////////////////////////
 
 //counter to temporarily assign IDs to unamed nodes
-var nextID = 0;
+var tempNodeID = 0;
+
+//create a new node on the board doesnt give the node a name yet
+//top = position of new node relative to the top of the webpage
+//left = position of new node relative to left of the webpage
+function createNewNode(event, top, left, name) {
+  //make sure data has been uploaded and possible features exist.
+  //Just a check, not sure if this case ever occurs
+  if (features.length == 0){
+    alert("Please upload data first");
+    return;
+  }
+
+  //create new node and set attributes
+  var newNode = document.createElement("div");
+  newNode.className = "node";
+  newNode.id = "node"+String(tempNodeID);
+  tempNodeID += 1; //update tempNodeID counter
+
+  //specify position of new node
+  newNode.style.position = "absolute";
+  newNode.style.top = top;
+  newNode.style.left = left;
+  newNode.style.zIndex = 1000;
+
+  //make new node draggable and have functions for what to do when dragging
+  newNode.draggable = "true";
+  newNode.ondragstart = function drag(event) {
+    if (connectMode){
+      alert("Please exit connect mode to move nodes");
+    } else {
+      event.dataTransfer.setData("text", event.target.id);
+    }
+  }
+
+  /*when drag ends, either
+      - user has added a new node to the board:
+          - give node name, info, children, parents, highlighted and delete button attributes 
+          - create a new node in the dashboard to eventually be used
+      - user moved a node alread on the board:
+          - if node was attached to another, move the lines with the moved node
+  */
+  newNode.ondragend = function(event) {
+    if (connectMode){
+      return;
+    }
+    if (waitingNode == newNode.id){ //we just dragged and created a real node
+      addNodeAttributes(newNode);
+      createNewNode(event, top, left, null); //create a waiting node
+    } else {
+      moveLines(newNode.id);
+    }
+  }
+
+  //rename node when double clicking, or if node is highlighted assign node a value
+  newNode.ondblclick = function(event) {
+    if (!nodes.includes(newNode.id)){//double click on node in dock
+      return;
+    }
+    if (connectMode){
+      alert("Cannot rename or set value in connect mode");
+      return;
+    }
+
+    if (newNode.getAttribute("data-highlight") == "false"){
+      //create input form for user to select node name (uses helper function: createDropdownForm)
+      var inputForm = createDropdownForm(newNode.id+"Name", features);
+      var nameSubmit = document.createElement("button");
+      nameSubmit.innerHTML = "Submit";
+      inputForm.appendChild(nameSubmit);
+
+      nameSubmit.onclick = function(argument) {
+        var nodeName = document.getElementById(newNode.id+"NameSelect").value;
+        document.getElementById(newNode.id+"Name").removeChild(inputForm);
+
+        addNodeName(newNode.id, nodeName);
+      }
+
+      document.getElementById(newNode.id+"Name").appendChild(inputForm);
+      //newNode.appendChild(inputForm);
+    } else { //if highlighted, double click to manually assign a value
+      var valueForm = createDropdownForm(newNode.id+"Value", [" ", "True", "False"]);
+      var nodeInfo = document.getElementById(newNode.id+"Info");
+      var submit = document.createElement("button");
+      submit.innerHTML = "Submit";
+      valueForm.appendChild(submit);
+      submit.onclick = function(argument) {
+        nodeInfo.innerHTML = document.getElementById(newNode.id+"ValueSelect").value;
+        setValues[newNode.id] = nodeInfo.innerHTML;
+      }
+      nodeInfo.appendChild(valueForm);
+    } 
+  }
+
+  //click node to highlight and unhighlight
+  // if in connect mode, selects parent and child
+  newNode.onclick = function(event) {
+    if (connectMode){
+      if (connectParent == null){
+        newNode.style.border = "5px solid yellow";
+        connectParent = newNode.id;
+        document.getElementById("dropzone").innerHTML = "Select a child";
+      } else {
+        document.getElementById(connectParent).style.border = "1px solid grey";
+        
+        if (connectParent != newNode.id){
+          connectNodes(connectParent, newNode.id);
+        }
+        connectParent = null;
+        document.getElementById("dropzone").innerHTML = "Select a new parent";
+      }
+    } else {
+      if (event.ctrlKey){
+        if (newNode.getAttribute("data-highlight") == "false"){
+          newNode.setAttribute("data-highlight", "true");
+          newNode.style.border = "5px double white";
+        } else {
+          newNode.setAttribute("data-highlight", "false");
+          newNode.style.border = "1px solid grey";
+        }
+      }
+    }
+  }
+
+  //append new node to document body
+  document.body.appendChild(newNode);
+
+  if (name != null){ //we're creating a new node for the board and assigning it a name
+    //create delete button on node
+    addNodeAttributes(newNode);
+    addNodeName(newNode.id, name);
+  } else {
+    waitingNode = newNode.id;
+  }
+  
+  return newNode.id;
+}
+
+/////////////////Helper functions for creating a new node///////////////////////
+
 
 //give node name, info, children, parents, highlighted and delete button attributes
 //add node to list of existing nodes
+//nodes contain two div elements (attributes): name element and info element
 function addNodeAttributes(newNode) {
   var nameElem = document.createElement("div");
   nameElem.innerHTML = newNode.id;
@@ -146,151 +287,13 @@ function addNodeAttributes(newNode) {
   nodes.push(newNode.id);
 }
 
-//create a new node on the board doesnt give the node a name yet
-//top = position of new node relative to the top of the webpage
-//left = position of new node relative to left of the webpage
-function createNewNode(event, top, left, name) {
-  //make sure data has been uploaded and possible features exist
-  if (features.length == 0){
-    alert("Please upload data first");
-    return;
-  }
-
-  //create new node and set attributes
-  var newNode = document.createElement("div");
-  newNode.className = "node";
-  newNode.id = "node"+String(nextID);
-  nextID += 1; //update nextID counter
-
-  //specify position of new node
-  newNode.style.position = "absolute";
-  newNode.style.top = top;
-  newNode.style.left = left;
-  newNode.style.zIndex = 1000;
-
-  //make new node draggable and have functions for what to do when dragging
-  newNode.draggable = "true";
-  newNode.ondragstart = function drag(event) {
-    if (connectMode){
-      alert("Please exit connect mode to move nodes");
-    } else {
-      console.log("dragging");
-      event.dataTransfer.setData("text", event.target.id);
-    }
-  }
-
-  /*when drag ends, either
-      - user has added a new node to the board:
-          - give node name, info, children, parents, highlighted and delete button attributes 
-          - create a new node in the dashboard to eventually be used
-      - user moved a node alread on the board:
-          - if node was attached to another, move the lines with the moved node
-  */
-  newNode.ondragend = function(event) {
-    if (connectMode){
-      return;
-    }
-    if (waitingNode == newNode.id){ //we just dragged and created a real node
-      addNodeAttributes(newNode);
-      createNewNode(event, top, left, null); //create a waiting node
-    } else {
-      moveLines(newNode.id);
-    }
-  }
-
-  //rename node when double clicking
-  newNode.ondblclick = function(event) {
-    if (!nodes.includes(newNode.id)){//double click on node in dock
-      return;
-    }
-    if (connectMode){
-      alert("Cannot rename or set value in connect mode");
-      return;
-    }
-
-    if (newNode.getAttribute("data-highlight") == "false"){
-      //create input form for user to write in node name
-      var inputForm = createDropdownForm(newNode.id+"Name", features);
-      var nameSubmit = document.createElement("button");
-      nameSubmit.innerHTML = "Submit";
-      inputForm.appendChild(nameSubmit);
-
-      nameSubmit.onclick = function(argument) {
-        var nodeName = document.getElementById(newNode.id+"NameSelect").value;
-        document.getElementById(newNode.id+"Name").removeChild(inputForm);
-
-        addNodeName(newNode.id, nodeName);
-      }
-
-      document.getElementById(newNode.id+"Name").appendChild(inputForm);
-      //newNode.appendChild(inputForm);
-    } else { //if highlighted, double click to manually assign a value
-      var valueForm = createDropdownForm(newNode.id+"Value", [" ", "True", "False"]);
-      var nodeInfo = document.getElementById(newNode.id+"Info");
-      var submit = document.createElement("button");
-      submit.innerHTML = "Submit";
-      valueForm.appendChild(submit);
-      submit.onclick = function(argument) {
-        nodeInfo.innerHTML = document.getElementById(newNode.id+"ValueSelect").value;
-        setValues[newNode.id] = nodeInfo.innerHTML;
-        console.log("set values", setValues);
-      }
-      nodeInfo.appendChild(valueForm);
-    } 
-  }
-
-  newNode.onclick = function(event) {
-    if (connectMode){
-      if (connectParent == null){
-        newNode.style.border = "5px solid yellow";
-        connectParent = newNode.id;
-        document.getElementById("dropzone").innerHTML = "Select a child";
-      } else {
-        document.getElementById(connectParent).style.border = "1px solid grey";
-        
-        if (connectParent != newNode.id){
-          connectNodes(connectParent, newNode.id);
-        }
-        connectParent = null;
-        document.getElementById("dropzone").innerHTML = "Select a new parent";
-      }
-    } else {
-      if (event.ctrlKey){
-        if (newNode.getAttribute("data-highlight") == "false"){
-          newNode.setAttribute("data-highlight", "true");
-          newNode.style.border = "5px double white";
-        } else {
-          newNode.setAttribute("data-highlight", "false");
-          newNode.style.border = "1px solid grey";
-        }
-      } else {
-
-      }
-    }
-  }
-
-  //append new node to document body
-  document.body.appendChild(newNode);
-
-  if (name != null){ //we're creating a new node for the board and assigning it a name
-    //create delete button on node
-    addNodeAttributes(newNode);
-    addNodeName(newNode.id, name);
-  } else {
-    waitingNode = newNode.id;
-  }
-  
-  return newNode.id;
-}
-
-/////////////////Helper functions for creating a new node///////////////////////
-
 /**
 (1) Add name to the node
 (2) Add option to animate that particular node
 (3) Add option to connect that particular node
 (4) Add option to get results for that paricular node
 (5) Add option to delete that particular node
+
 
 We already know features should include new node name
 */
@@ -378,6 +381,15 @@ function addNodeName(oldID, newID) {
   
 }
 
+/**
+(1) disconnect node from all children
+(2) disconnect node from all parents
+(3) delete node from parent and children dicts
+(4) remove node from nodes list
+(5) remove node from body
+(6) remove node from final node options
+(7) remove node from probabilities dict
+*/
 function deleteNode(nodeID) {
 
   //remove all connections
@@ -385,7 +397,6 @@ function deleteNode(nodeID) {
   var childListCopy = children[nodeID].slice(0);
   for (var i=0; i<childListCopy.length; i++){
     var child = childListCopy[i];
-    console.log("parent, child, disconnect", nodeID, child);
     disconnectNodes(nodeID, child);
   }
   //disconnect node from all parents
@@ -408,7 +419,7 @@ function deleteNode(nodeID) {
 
   if (features.includes(nodeID)){
 
-    //remove name from get results option
+    //remove name from final node option
     var finalNodeOption = document.getElementById("finalNodeOption"+nodeID);
     document.getElementById("finalNodeForm").removeChild(finalNodeOption);
 
@@ -433,7 +444,6 @@ function drop(event) {
 function moveLines(nodeID) {
   for (var i=0; i<children[nodeID].length; i++){
     var child = children[nodeID][i]
-    console.log("child", child);
     document.body.removeChild(document.getElementById(nodeID+child+"line"));
     drawSVGLine(nodeID, child);
   }
@@ -460,8 +470,7 @@ var changedSpeed = false;
 
 function animateNodes() {
   animateMode = true;
-  stopAnimating = false;
-  console.log("beginning animation", animateCounter);
+  stopAnimating = false;;
   //checks to make sure data has been uploaded and nodes exist
   if (data.length == 0){
     alert("Please upload data");
@@ -478,7 +487,7 @@ function animateNodes() {
   //have counter to keep track of data point we're displaying on node animation (RSVP)
   //also used to keep track of how many times we've looped
 
-  function myloop(speed) {
+  function loop(speed) {
     setTimeout(function () {
 
       var new_speed = 1000-(10*document.getElementById("animateSlider").value);
@@ -501,7 +510,6 @@ function animateNodes() {
           }
         }
       }
-      console.log("nodes to animate", nodesToAnimate);
 
       //determine if all nodes are lit for this particular data point
       var allLit = true;
@@ -513,7 +521,6 @@ function animateNodes() {
           if (data[animateCounter/2][features.indexOf(animatedNode)] != "1"){
             allLit = false;
           }
-          //console.log(animatedNode, data[counter/2][features.indexOf(animatedNode)], allLit);
         }
       }
 
@@ -556,11 +563,10 @@ function animateNodes() {
         alert("Please select or create a node to animate. Then restart animation");
         animateMode = false;
       } else if (!stopAnimating && animateCounter/2 < data.length){
-          myloop(new_speed);
+          loop(new_speed);
       } 
       //if stopping the animation process, convert all nodes back to their original white color
       else {
-        console.log("finished", stopAnimating);
         animateMode = false;
         for (var j=0; j<nodesToAnimate.length; j++){
           var nodeElem = document.getElementById(nodesToAnimate[j]);
@@ -570,7 +576,7 @@ function animateNodes() {
     }, speed)
   }
 
-  myloop(speed);
+  loop(speed);
 }
 
 //Once the user has selected a speed at which to animate nodes, display this speed
@@ -582,7 +588,6 @@ function displayAnimationSpeed() {
 //Stop the animation process from happening by changing the stopAnimating boolean
 function stopAnimation() {
   animateMode = false;
-  console.log("No animating");
   stopAnimating = true;
 }
 
@@ -631,7 +636,6 @@ function switchConnectMode() {
 function connectNodes(parent, child) {
   var lineExists = document.getElementById(parent+child+"line");
   if (lineExists != null){
-    console.log("connection already exists");
     return;
   }
 
@@ -984,7 +988,6 @@ function computeProbabilities(childNode) {
 
   function helper(currentNode) {
     var validParents = [];
-    console.log(parents[currentNode]);
     for (var i=0; i<parents[currentNode].length; i++){
       if (features.includes(parents[currentNode][i])){
         validParents.push(parents[currentNode][i]);
@@ -1251,7 +1254,6 @@ function getResults(event) {
 
   //get the highest unassigned node (to be assigned)
   var highestUnassigned = getHighestUnassignedValue(finalNode);
-  console.log(highestUnassigned);
 
   //get the probability of the highest unassigned node being true
   var probability_dict = probabilities[highestUnassigned];
