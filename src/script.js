@@ -194,7 +194,7 @@ function createNewNode(event, top, left, name) {
       submit.innerHTML = "Submit";
       valueForm.appendChild(submit);
       submit.onclick = function(argument) {
-        nodeInfo.innerHTML = document.getElementById(newNode.id+"ValueSelect").value;
+        nodeInfo.innerHTML = "<span style:'color:aqua'>"+document.getElementById(newNode.id+"ValueSelect").value+"</span>";
         setValues[newNode.id] = nodeInfo.innerHTML;
       }
       nodeInfo.appendChild(valueForm);
@@ -1272,7 +1272,7 @@ function getResults(event) {
   var nodeInfo = document.getElementById(highestUnassigned+"Info");
   nodeInfo.innerHTML += "Probability = "+Math.round(probability*100)+"%";
   nodeInfo.innerHTML += "<br />";
-  nodeInfo.innerHTML += "<span style='color:red'>"+setValues[highestUnassigned]+"</span>";
+  nodeInfo.innerHTML += "<span style='color:aqua'>"+setValues[highestUnassigned]+"</span>";
 }
 
 function getHighestUnassignedValue(bottomNode) {
