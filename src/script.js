@@ -219,7 +219,7 @@ function createNewNode(event, top, left, name) {
         document.getElementById("dropzone").innerHTML = "Select a new parent";
       }
     } else {
-      if (event.ctrlKey){
+      if (event.shiftKey){
         if (newNode.getAttribute("data-highlight") == "false"){
           newNode.setAttribute("data-highlight", "true");
           newNode.style.border = "5px double white";
